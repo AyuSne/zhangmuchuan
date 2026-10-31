@@ -11,7 +11,7 @@
 
 ## Consequences
 
-- 本地构建需要 Hugo Extended ≥ 0.168.0 与 Go ≥ 1.27.3（Hugo Modules 拉取主题）。
+- 本地构建需要 Hugo Extended ≥ 0.169.0 与 Go ≥ 1.27.3（Hugo Modules 拉取主题）。
 - 文章是仓库里的 Markdown，没有后台与数据库；发布靠 `git push`。
 - GitHub Pages 有软限制（站点 1 GB、每月约 100 GB 流量、每小时约 10 次构建），个人博客够用。
 - 绑定 `zhangmuchuan.com` 之前，站点地址是 `https://ayusne.github.io/zhangmuchuan/`，Hugo 的 `baseURL` 要带这个子路径；绑定域名后改回根路径。

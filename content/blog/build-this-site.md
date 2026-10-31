@@ -1,6 +1,6 @@
 ---
 title: 这个站是怎么搭的
-date: 2026-10-31
+date: 2026-10-30
 description: Hugo + OINK + GitHub Pages，一套零成本的静态博客方案。
 tags: [建站, Hugo]
 ---

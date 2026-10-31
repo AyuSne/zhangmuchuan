@@ -3,7 +3,7 @@
 title: 张暮川
 baseURL: https://ayusne.github.io/zhangmuchuan/
 defaultContentLanguage: zh
-disableLanguages: [en, fr]
+disableLanguages: [en]
 enableGitInfo: true
 enableRobotsTXT: true
 enableEmoji: true
@@ -18,16 +18,11 @@ languages:
     hasCJKLanguage: true
     params:
       description: 张暮川的个人博客，记录技术、思考与写作。
-  # 以下两种语言暂时禁用，保留声明，以便以后添加 .en.md / .fr.md 翻译。
+  # 英文暂时禁用，保留声明；以后添加 .en.md 翻译时从 disableLanguages 移除。
   en:
     label: English
     locale: en-US
     weight: 2
-    title: 张暮川
-  fr:
-    label: Français
-    locale: fr-FR
-    weight: 3
     title: 张暮川
 
 # OINK 的 Markdown 组件依赖以下三项 Goldmark 设置。
@@ -52,7 +47,6 @@ params:
   copyright:
     authors: 张暮川
     from_year: 2026
-  footer_center_info: ''
   ui:
     preset: paper
     preset_menu: [paper, slate, ink, terminal]
@@ -86,4 +80,4 @@ module:
     - path: github.com/pgsty/oink
   hugoVersion:
     extended: true
-    min: 0.168.0
+    min: 0.169.0

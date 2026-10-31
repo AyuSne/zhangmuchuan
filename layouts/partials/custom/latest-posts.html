@@ -1,0 +1,27 @@
+{{- $page := .page -}}
+{{- $data := .data -}}
+{{- $id := .id -}}
+{{- $limit := $data.limit | default 3 -}}
+{{- $posts := first $limit (sort (where site.RegularPages "Section" "blog") "Date" "desc") -}}
+<section id="{{ $id }}" class="td-landing-section td-landing-cards-section"{{ with $data.title }} aria-labelledby="{{ $id }}-title"{{ end }}>
+  <div class="td-site-container">
+    {{- partial "landing/heading.html" (dict "page" $page "data" $data "id" $id) }}
+    {{- with $posts }}
+    <div class="td-landing-card-grid" style="--td-columns: {{ $data.columns | default 3 }}">
+      {{- range $post := . }}
+      <article class="td-landing-card">
+        <p class="td-landing-card__meta">{{ $post.Date.Format "2006-01-02" }}</p>
+        <h3>{{ $post.Title }}</h3>
+        {{- with $post.Description }}
+        <div class="td-landing-card__description"><div class="td-content"><p>{{ . }}</p></div></div>
+        {{- end }}
+        <a class="td-landing-card-link" href="{{ $post.RelPermalink }}">
+          <span class="visually-hidden">{{ $post.Title }}</span>
+          <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+        </a>
+      </article>
+      {{- end }}
+    </div>
+    {{- end }}
+  </div>
+</section>

@@ -1,4 +1,13 @@
-sections: [hero, cards]
+sections:
+  - hero
+  - type: latest
+    partial: custom/latest-posts.html
+    data:
+      eyebrow: 最近
+      title: 最新文章
+      desc: 最近发布的三篇，完整列表在博客栏目。
+      limit: 3
+  - cards
 
 hero:
   align: center

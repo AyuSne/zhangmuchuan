@@ -4,7 +4,7 @@
 
 ## 本地开发
 
-需要 **Hugo Extended ≥ 0.168.0** 与 **Go ≥ 1.27.3**（Hugo Modules 拉取主题用）。不需要 Node.js。
+需要 **Hugo Extended ≥ 0.169.0** 与 **Go ≥ 1.27.3**（Hugo Modules 拉取主题用）。不需要 Node.js。
 
 PowerShell：
 
@@ -39,9 +39,9 @@ tags: [标签]
 
 正文用 Markdown。站点结构：
 
-- 首页：`data/home/zh.yaml`
+- 首页：`data/home/zh.yaml`（含 hero、最新文章、入口卡片）
 - 博客：`content/blog/`
-- 关于：`content/about.md`
+- 关于：`content/about.md`（页面外壳，`layout: landing`）+ `data/landing/about/zh.yaml`（正文）
 
 ## 部署
 

@@ -6,7 +6,6 @@ hero:
   title_lines:
     - words: [{ text: 张暮川 }]
   lead: 写技术，也写思考。
-  actions: []
 
 markdown:
   title: 简介
