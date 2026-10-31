@@ -42,6 +42,10 @@ outputs:
   page: [HTML, markdown]
   section: [HTML, RSS, print, markdown]
 
+# 只用 tags，不要 Hugo 默认的 categories。
+taxonomies:
+  tag: tags
+
 params:
   offline_search: true
   copyright:
