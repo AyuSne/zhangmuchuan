@@ -1,0 +1,19 @@
+sections: [hero, markdown]
+
+hero:
+  align: center
+  eyebrow: 关于
+  title_lines:
+    - words: [{ text: 张暮川 }]
+  lead: 写技术，也写思考。
+  actions: []
+
+markdown:
+  title: 简介
+  body: |
+    我是张暮川。这个博客用来记录技术、思考与写作：以长文为主，不追热点，也不保证频率。
+
+    - GitHub：<https://github.com/AyuSne>
+    - 站点源码：<https://github.com/AyuSne/zhangmuchuan>
+
+    想讨论点什么，可以在 GitHub 仓库开 issue，或者直接邮件联系。

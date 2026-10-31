@@ -1,0 +1,12 @@
+# Build output
+/public/
+/resources/
+/.hugo_cache/
+/.hugo_build.lock
+
+# Local toolchain and reference checkouts
+/.tools/
+
+# OS
+.DS_Store
+Thumbs.db

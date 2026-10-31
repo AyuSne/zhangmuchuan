@@ -1,0 +1,89 @@
+# 张暮川的个人博客 —— 全站唯一的配置文件。
+
+title: 张暮川
+baseURL: https://ayusne.github.io/zhangmuchuan/
+defaultContentLanguage: zh
+disableLanguages: [en, fr]
+enableGitInfo: true
+enableRobotsTXT: true
+enableEmoji: true
+timeZone: Asia/Shanghai
+
+languages:
+  zh:
+    label: 简体中文
+    locale: zh-CN
+    weight: 1
+    title: 张暮川
+    hasCJKLanguage: true
+    params:
+      description: 张暮川的个人博客，记录技术、思考与写作。
+  # 以下两种语言暂时禁用，保留声明，以便以后添加 .en.md / .fr.md 翻译。
+  en:
+    label: English
+    locale: en-US
+    weight: 2
+    title: 张暮川
+  fr:
+    label: Français
+    locale: fr-FR
+    weight: 3
+    title: 张暮川
+
+# OINK 的 Markdown 组件依赖以下三项 Goldmark 设置。
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+    parser:
+      attribute:
+        block: true
+      wrapStandAloneImageWithinParagraph: false
+  highlight:
+    noClasses: false
+
+outputs:
+  home: [HTML, RSS, markdown, LLMS]
+  page: [HTML, markdown]
+  section: [HTML, RSS, print, markdown]
+
+params:
+  offline_search: true
+  copyright:
+    authors: 张暮川
+    from_year: 2026
+  footer_center_info: ''
+  ui:
+    preset: paper
+    preset_menu: [paper, slate, ink, terminal]
+    dark_mode: true
+    section_index: cards
+    blog_index: cards
+    sidebar_menu_foldable: true
+    sidebar_icon_policy: groups
+    backlinks: true
+
+  # 仓库链接：页脚的 GitHub 入口与“编辑此页”。
+  github_repo: https://github.com/AyuSne/zhangmuchuan
+  github_branch: main
+
+  # Giscus 评论：第一期关闭。配置齐全后把 enable 改成 true。
+  # comments:
+  #   enable: true
+  #   type: giscus
+  #   giscus:
+  #     repo: AyuSne/zhangmuchuan
+  #     repoId: R_xxxxxxxxxx
+  #     category: Announcements
+  #     categoryId: DIC_xxxxxxxxxx
+  #     mapping: pathname
+  #     inputPosition: bottom
+  #     theme: auto
+  #     loading: lazy
+
+module:
+  imports:
+    - path: github.com/pgsty/oink
+  hugoVersion:
+    extended: true
+    min: 0.168.0
