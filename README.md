@@ -2,6 +2,11 @@
 
 基于 [Hugo](https://gohugo.io/) 与 [OINK](https://oink.pgsty.com/) 主题的静态博客，部署在 GitHub Pages。
 
+## 文档
+
+- [项目总结](docs/PROJECT.md)：做了什么、为什么这么选、现在到哪一步
+- [使用手册](docs/GUIDE.md)：写文章、发布、改站点、绑域名、开评论、排错
+
 ## 本地开发
 
 需要 **Hugo Extended ≥ 0.169.0** 与 **Go ≥ 1.27.3**（Hugo Modules 拉取主题用）。不需要 Node.js。
