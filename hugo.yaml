@@ -34,6 +34,12 @@ markup:
       attribute:
         block: true
       wrapStandAloneImageWithinParagraph: false
+    extensions:
+      passthrough:
+        enable: true
+        delimiters:
+          block: [['\[', '\]'], ['$$', '$$']]
+          inline: [['\(', '\)'], ['$', '$']]
   highlight:
     noClasses: false
 
@@ -42,9 +48,10 @@ outputs:
   page: [HTML, markdown]
   section: [HTML, RSS, print, markdown]
 
-# 只用 tags，不要 Hugo 默认的 categories。
+# 使用标签和文章系列，不启用 Hugo 默认的 categories。
 taxonomies:
   tag: tags
+  series: series
 
 params:
   offline_search: true
