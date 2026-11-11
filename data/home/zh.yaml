@@ -5,7 +5,7 @@ sections:
     data:
       eyebrow: 最近
       title: 最新文章
-      desc: 最近发布的三篇，完整列表在博客栏目。
+      desc: 最近发布的三篇，更多内容见博客与翻译栏目。
       limit: 3
   - cards
 
@@ -22,13 +22,17 @@ hero:
 
 cards:
   eyebrow: 从这里开始
-  title: 两个入口
-  columns: 2
+  title: 三个入口
+  columns: 3
   items:
     - title: 博客
       desc: 技术长文与阶段性思考，按时间倒序。
       icon: fa-solid fa-pen-nib
       url: blog/
+    - title: 翻译
+      desc: 值得细读的文章中文译文。
+      icon: fa-solid fa-language
+      url: translations/
     - title: 关于
       desc: 我是谁，以及这个站为什么存在。
       icon: fa-solid fa-circle-info
