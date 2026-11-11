@@ -9,7 +9,7 @@ series: [智能体第一性原理]
 series_weight: 6
 ---
 
-> 本文结合智能体第一性原理，讨论跨会话记忆及其工程实践，并参考 Anthropic 的 [The components of agent memory](https://www.anthropic.com/research/components-of-agent-memory) 等资料。
+> 本文结合智能体第一性原理，讨论跨会话记忆及其工程实践，并参考 Anthropic 的 [The components of agent memory](https://www.anthropic.com/research/components-of-agent-memory) 和冯若航的 [三分天下：为什么 Agent Memory 框架是死路](https://vonng.com/ai/agent-memory-framework/) 等资料。
 
 ---
 
