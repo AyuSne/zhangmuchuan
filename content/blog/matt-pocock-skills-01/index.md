@@ -44,7 +44,7 @@ Context 窗口规模：
 
 ---
 
-### 一、 为什么第 0 步只能立三根路标？—— 从信息完备性方程推导元指针（Meta-pointers）
+### 一、 为什么第 0 步只立三根路标？—— 从信息完备性方程看渐进式披露
 
 任何 Agent 架构在面对一个全新的工程仓库时，第一道无法逾越的物理审判，就是**信息完备性方程**：
 
@@ -63,8 +63,8 @@ $$
 
 这种做法本质上是患了“前馈暴食症”——在第 0 步就塞满流程黑盒，让工作台彻底丧失了信噪比。
 
-**打破这一悖论的唯一物理收敛态，是“元指针（Meta-pointers）”**：
-初始前馈（$I_{\text{初始前馈}}$）必须被极限压缩到 50 个 Token 以内，它不包含任何具体的业务细节，只保留**指向环境存量事实（$\Delta I_{\text{存量}}$）的物理寻路入口**。
+**应对这一矛盾的一种方式，是[渐进式披露（Progressive Disclosure）](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)**：
+初始前馈（$I_{\text{初始前馈}}$）保留当前任务必需的背景、约束，以及**指向环境存量事实（$\Delta I_{\text{存量}}$）的索引**；需要更多信息时，Agent 再沿索引按需读取。这里可以把这些索引称为“元指针（Meta-pointers）”：它们是渐进式披露的入口。初始内容应当精炼，但无需规定固定的 Token 上限，具体多少取决于任务与项目。
 
 这正是 Matt Pocock 的工程初始化技能 [`setup-matt-pocock-skills`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/setup-matt-pocock-skills/SKILL.md) 最令人惊叹的克制之处。他在项目的 `CLAUDE.md` 或 `AGENTS.md` 顶层，仅仅悬挂了三根极轻量的物理指针：
 
