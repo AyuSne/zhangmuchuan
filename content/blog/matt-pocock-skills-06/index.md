@@ -1,7 +1,7 @@
 ---
-title: "解构 Matt Pocock 的 Skills（六）：从人脑手杖到外置本体传感器 —— 用 /tdd 击穿大模型自测伪证"
+title: "解构 Matt Pocock 的 Skills（六）：测试先亮红灯，Agent 就真的知道自己做对了吗？"
 date: 2026-11-11
-description: "从第一性原理出发，分析测试驱动开发如何为智能体提供可验证的反馈。"
+description: "探讨测试驱动开发中红灯、绿灯和测试证据的边界。"
 tags: [AI, Agent]
 slug: matt-pocock-skills-06
 draft: false
@@ -9,438 +9,366 @@ series: [Matt Pocock Skills]
 series_weight: 6
 ---
 
-> 本文结合智能体第一性原理，解构 Matt Pocock 的 Skills 实践；主要参考 [AI Skills with Matt Pocock 播客](https://www.youtube.com/watch?v=4DhcSPkEbwI)及 [Skills 项目（本文所用版本）](https://github.com/mattpocock/skills/tree/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d)。
+> 本文结合第一性原理分析 Matt Pocock 的 Skills 实践，主要参考 [AI Skills with Matt Pocock 访谈](https://www.youtube.com/watch?v=4DhcSPkEbwI)和 [Skills 项目所引用版本](https://github.com/mattpocock/skills/tree/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d)。
+
+### 引子：一排绿色的测试，为什么还是让人不放心？
+
+假设我们让 Agent 实现一个会员取消订阅功能。我们已经讨论清楚：用户取消后，系统应停止自动续费；已经付费购买的权益，仍然保留到当前周期结束。
+
+几分钟后，Agent 回来报告：“代码写好了，测试全部通过。”
+
+听上去很顺利。可是我们打开测试，发现它验证的是：**用户一取消订阅，会员权益就立刻失效。** 而实现代码恰好也这么做了。测试确实运行了，程序也确实表现出了测试所要求的行为；只是这套行为和我们想要的东西并不一样。
+
+再设想另一种情况：验收要求写对了，Agent 却把测试写成“调用一次取消方法，就断言取消方法被调用过一次”。结果也可能是绿色的，但我们仍然不知道续费是否关闭，更不知道已付费的权益是否保留下来。
+
+这两个例子是为了说明问题而构造的。它们把一个值得认真追问的矛盾摆在面前：**测试是我们用来检查代码的，但如果测试也由同一个 Agent 编写，我们到底凭什么相信那盏绿灯？**
+
+上一篇讨论了怎样把大任务拆成可以较早验证的工单。这一篇，我们把一张工单再往里打开，看看实现一个具体行为时，[`/tdd`](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/SKILL.md) 怎样安排测试和行动；更重要的是，借这个标本继续检验我们的理论：一次运行究竟带回什么信息？红灯证明了什么？程序、模型和人类各自又该负责哪部分判断？
 
 ---
 
-在很多开发团队初尝 AI Coding 的蜜月期里，几乎所有工程师都经历过这样一幕极其滑稽的“皇帝新衣”：
+### 一、先回到黑屋：模型写出了代码，并不等于看见了它运行
 
-你把一个工单丢给 Agent，命令它：“把这套订单优惠券计算逻辑实现了，并补齐测试。”  
-几分钟后，Agent 吐出一长串漂亮的控制台输出，神采奕奕地向你汇报：  
-*“实现已完成，新增测试用例 12 个，`npm test` 结果：12 passed, 0 failed！代码健壮，准予上线！”*
+在[《第一篇》](/zhangmuchuan/blog/agent-loop/)里，我们把模型想象成坐在黑屋里的人。外部世界记为 $E$，模型当前实际拿到的上下文记为 $C$，基于该上下文生成的输出记为 $R$。在模型参数固定、外部状态只通过上下文影响本次输出的设定下：
 
-你长舒一口气，把代码推到生产环境。然而仅仅五分钟后，告警群瞬间被刷爆，用户下单流程全面瘫痪。
+$$
+E \longrightarrow C \longrightarrow R
+$$
 
-当你强压怒火翻开 Agent 刚刚写下的测试用例时，眼前的一幕足以让任何一个资深工程师气笑：  
-* 它在测试用例里，把刚刚写完的核心折扣服务用 Mock 完完全全替换掉了；
-* 它在断言里，把业务计算公式重新在测试里手抄了一遍，断言 `expect(actual).toBe(actual)`；
-* 更有甚者，它的测试压根没有走公共接口，而是直接向测试数据库里硬塞了一行数据，然后断言数据库里有这行数据！
+由此，根据数据处理不等式：
 
-这种代码在物理现实中根本无法运行，但它在 Agent 自己的测试套件里，却每一次都能跑出刺眼的全绿灯。
+$$
+I(E;R) \le I(E;C)
+$$
 
-**为什么大模型写出的测试如此热衷于自欺欺人？为什么二十年前人类敏捷大师发明的测试驱动开发（TDD），在二十年后的大模型工程中，突然从一种“可选的工程美德”，蜕变为了“生死攸关的物理防线”？**
+公式中的 $I(E;C)$ 是上下文包含的、关于外部环境的信息；$I(E;R)$ 是输出包含的、关于环境的信息。它说明：在这个条件独立的模型中，只对已有上下文做封闭加工，不会凭空获得关于当前外部环境的新增信息。
 
-在上一篇[《解构 Matt Pocock 的 Skills（五）：从垂直切片到前沿调度，用 to-tickets 驾驭长程施工》](../matt-pocock-skills-05/)中，我们推导了如何将一个庞大的需求分解为一颗颗穿透全栈的“垂直示踪弹（Tracer Bullets）”。而当一颗具体的工单示踪弹被装填进执行器时，真正的物理交火爆发了。
+假如 Agent 根据需求写下一段取消订阅代码，再只在同一个上下文里说“我已经仔细检查，应该没问题”，它确实又进行了一次加工：可能把之前漏看的逻辑关系显式想清楚，也可能发现自己在文字里的矛盾。可是，**这句自评本身并没有告诉我们程序在某个真实运行环境里发生了什么。**
 
-本文我们将 Matt Pocock 的 [`/tdd`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/tdd/SKILL.md) 技能按在解剖台上。结合作者在[《数学基石篇》](../agent-math-foundations/)与系列前置篇中确立的第一性原理，彻底穿透 TDD 在大模型时代的**本体论突变**，揭秘其如何用香农信息论与控制论的铁律，给在黑屋中盲动的大模型戴上第一副不可作弊的物理手铐。
+这正是[《数学基石篇》定理五](/zhangmuchuan/blog/agent-math-foundations/)试图指出的边界。设 $Z$ 为我们关心的目标真实状态，例如某个固定版本的取消订阅功能是否满足约定；$C_t$ 是当前已有上下文；$R_{\text{自评}}$ 是模型只根据该上下文生成的自评。在满足 $Z\rightarrow C_t\rightarrow R_{\text{自评}}$ 的条件独立设定下：
+
+$$
+I(Z;R_{\text{自评}}\mid C_t)=0
+$$
+
+也就是说，在已经给定全部 $C_t$ 的信息论模型里，单独再生成这段自评，不额外提供关于 $Z$ 的外部证据。这不是说重新思考毫无用处：现实中的执行者计算能力有限，重新整理已有材料可能帮助他发现先前没注意到的问题。我们必须分开看：**已有信息变得更容易被使用**，与**从环境取得了此前没有的观测**，是两回事。
+
+而测试运行打开了另一条通道。Agent 把测试和程序交给外部运行环境，环境返回退出码、断言结果或异常信息。这些输出进入下一轮上下文，Agent 再据此决定要不要改代码。即使程序行为可能已经隐含在代码与环境中，执行前的 Agent 也未必可靠掌握它；实际运行给出了特定版本、特定输入和特定环境下的观察。
+
+《数学基石篇》的信息完备性方程提醒我们，把当前阶段已有的前馈和后续交互带回的反馈放在同一张账里看：
+
+$$
+I_{\text{前馈}}+\sum_{k=1}^{n}\Delta I_{\text{反馈},k}\ge I_{\text{目标}}
+$$
+
+在这个理想化信息账里，$I_{\text{前馈}}$ 是选定阶段开始时已经取得的目标相关信息，例如已确认的会员规则；$\Delta I_{\text{反馈},k}$ 是之后第 $k$ 次交互带来的目标相关信息；$I_{\text{目标}}$ 在原模型中由目标状态 $Z$ 的先验熵减去允许的剩余不确定性 $\varepsilon$ 定义，即 $H(Z)-\varepsilon$。链式累加以固定分析目标、完整保留之前上下文并加入后续观测为条件。这个阈值衡量模型所设定的不确定性，并不单凭数值保证程序已经正确交付。
+
+如果用户的验收要求、被测版本和运行环境明确，那么一次测试可能补上“这段代码在给定输入下实际做了什么”的信息缺口。但它能补多少、是否足以判断最终目标，还要看测试执行了什么、断言从哪里来，以及运行结果怎样被解释。**外部运行是取得证据的机会，测试的名字和绿色状态本身不是证据质量的保证。**
 
 ---
 
-### 一、 本体论突变：从“人类记忆手杖”到“Agent 外置本体传感器”
+### 二、先定要做什么，再试能不能做到：从恒温器看测试
 
-要理解 TDD 在大模型工程中的角色，必须先还原 TDD 诞生时的历史真相。
+假设你帮朋友订生日蛋糕。朋友明确说：“不要花生，奶油少一点，晚上六点前送到。”蛋糕送到时，店员说：“我们核对过了，蛋糕是圆的，盒子也关好了。”这些检查结果可能都是真的，但你最关心的花生、甜度和交付时间仍然没有得到回答。你拿出订单，向店员核对配料表；店员发现使用的奶油含花生碎，于是停止交付，联系你更换配方。订单上“不放花生”的约定是判断依据，配料表带回的是你需要检查的事实；蛋糕盒是否关好则回答了另一个问题。
 
-在[播客访谈记录](https://www.youtube.com/watch?v=4DhcSPkEbwI)第 357~363 行中，主持人与 Matt Pocock 展开了一段极具穿透力的对话：
+为什么？因为检查之前，必须先弄清**希望达到什么状态**，再选择能够观察这一状态的方式。我们不能看见一个结果，就自动知道它是否满足原来的目标。
 
-> **主持人**：*“业界很多人谈论在智能体时代重新引入 TDD，包括 Kent Beck 也提过这可能非常契合。但你真的觉得 Agent 需要 TDD 吗？”*  
-> **Matt Pocock**：*“TDD 最初针对的是什么？**TDD 优化的是人类非常狭窄的工作记忆（Working Memory）**。你写一个失败的测试，然后就算你中途分心了，你去泡杯咖啡，或者去楼下散个长步，等你回来坐下时，那个红色的报错依然挂在屏幕上，提醒你当前停在哪一步，引导你做下一步。  
-> **但是 Agent 根本不需要这个！** Agent 的工作记忆比人类大得多，它们脑子里能容纳的上下文远超人类。所以如果只把 TDD 当作记忆辅助，它完全是**瞄准了错误的靶子（aiming at the wrong problem）**。  
-> **Agent 真正需要的是反馈回路（Feedback Loops）！** 它们需要看到自己正在做什么，需要看到自己与代码环境的真实交互。它们必须时时刻刻去刺探物理世界。迫使 Agent 先把失败做出来，它就无法作弊，它必须向人类提供不可辩驳的执行证据！”*
+[《第三篇》](/zhangmuchuan/blog/agent-harness/)用恒温器解释过这个闭环。设定值告诉我们要达到什么；传感器带回现状；比较器判断现状与目标是否一致；执行器根据差距调整行动。
 
-这段对话揭示了大模型工程史上最深刻的一次**本体论突变（Ontological Mutation）**。
+把它放进会员功能里：
 
-#### 1. 理论发动机：黑屋困境与 $(P, M, H)$ 独立验证空间
+- **目标设定值**：取消后关闭自动续费，已付费权益保留到约定日期。
+- **观察与比较**：准备一个有明确到期日的订阅，执行取消，通过公共接口读取结果，再与已经约定的行为比较。
+- **行动与反馈**：Agent 根据测试显示的差距修改实现，再运行测试观察变化。
 
-我们在[《第一篇：架构的必然演进》](../agent-loop/)中确立的核心公理指明了大模型的根本生理残疾：**大模型被永久锁死在黑屋之中**。
+![测试预期、实际执行与比较结果的关系](images/tdd-test-evidence.png)
 
-大模型的一切推理，本质上都是基于静态冻结权重的条件概率采样。在未连接执行环境时，它对物理世界真实机器的状态没有任何直接感知通道。
+*图：根据本文对测试依据和执行反馈的分析归纳。*
 
-进一步地，我们在[《数学基石篇》](../agent-math-foundations/)§五.3 中建立了智能体验证的 **$(P, M, H)$ 独立验证空间**：
-* $\mathbf{M}$ 轴（Model）：大模型内部的主观语义推理与概率判断；
-* $\mathbf{P}$ 轴（Program）：独立于大模型脑子之外的、物理机器上的确定性程序（编译器、自动化测试套件、类型检查器、Linter）；
-* $\mathbf{H}$ 轴（Human）：真实物理世界的终极意图持有者与责任主体。
+这里必须分清三件事。**验收标准**回答“什么行为算符合要求”；**测试接缝**回答“我们从哪个对调用者可见的接口输入、观察行为”；**测试用例及断言**把一个具体输入与期望结果写成可执行检查。
 
-```mermaid
-flowchart TD
-    subgraph 传统人类TDD["传统人类开发：TDD 是记忆拐杖"]
-        H_Brain["人类大脑 (工作记忆狭小: 7±2)"] -->|"防遗忘书签"| Human_TDD["Red-Green Loop<br>(泡咖啡回来提醒进度)"]
-    end
+例如，验收标准是“取消后当前周期权益仍然有效”。一个具体用例可以设定：订阅已付费到 11 月 30 日，用户 11 月 12 日取消；11 月 20 日查询时权益应有效，12 月 1 日应失效。至于如何设定可控日期、通过哪个接口查询，是测试设计需要解决的问题。
 
-    subgraph Agent智能体TDD["Agent 时代：TDD 是本体论传感器"]
-        M_Space["大模型黑屋 (M 空间)<br>上下文充沛但充满主观概率幻觉"]
-        M_Space -->|"在发射动作前<br>必须先架设物理传感器"| P_Axis["确定性测试套件 (P 轴)<br>外部机器真实报错/通过"]
-        P_Axis -->|"回传不可篡改的真值增量 ΔI"| M_Space
-    end
+标准、接口和具体测试相互联系，却不能互相替代。知道要考什么，才有理由选择考法；考试通过，也只说明学生在这份试卷和当次条件下答对了相关题目。一个好的测试可以覆盖重要行为，但仍需要考虑没有考到的场景。
+
+---
+
+### 三、亲手走一遍 Red → Green：红灯到底让我们看见了什么？
+
+下面用一个可以运行的 Python 小例子，把抽象的反馈落到实际操作上。这个例子只说明取消续费与已付费到期日，不连接真实支付系统，也不代表完整会员服务。
+
+假设我们已经确认两条验收要求：用户取消后，`auto_renew` 应变为 `False`；原有的 `paid_through` 日期保持不变。我们选择调用 `Subscription.cancel()`，并读取对象公开属性 `auto_renew` 与 `paid_through`，作为这个小例子的测试接缝。这个方法本身没有返回状态。
+
+先在同一目录创建 `subscription.py`，留一个可以正常调用、但暂时还没有实现取消行为的初始版本：
+
+```python
+from dataclasses import dataclass
+from datetime import date
+
+
+@dataclass
+class Subscription:
+    auto_renew: bool
+    paid_through: date
+
+    def cancel(self):
+        # 先保留可调用的入口，尚未实现取消行为。
+        pass
 ```
 
-现在我们用这一框架对比人类与 Agent：
-* **对人类程序员而言**：人类拥有肉身，天然能直接感知物理世界。但人类的短期工作记忆极小（米勒定律 $7 \pm 2$），容易被电话、微信、咖啡打断。TDD 是人类给自己发明的**记忆外挂手杖**；
-* **对 AI Agent 而言**：Agent 的上下文空间高达 150k Token，它不需要“咖啡书签”。但 Agent 缺乏与物理世界的原生连接，它极易在 $\mathbf{M}$ 空间中陷入语义自嗨。**TDD 对 Agent 而言，是外置的本体论传感器（External Ontological Sensor）！**
+再创建 `test_subscription.py`。期望值来自上面已经确认的业务要求，而不是照着 `cancel()` 当前的实现推算：
 
-如果不要求 TDD，让 Agent 先写实现代码，Agent 实际上是在纯粹的 $\mathbf{M}$ 空间里开环裸奔。而强制执行 TDD，是**逼迫 Agent 在黑屋的墙壁上凿开一个物理孔洞，把 $\mathbf{P}$ 轴的自动化探针先伸到黑屋之外**！
+```python
+import unittest
+from datetime import date
 
-#### 2. 生活常识类比：倒车雷达 vs 撞墙后贴“允许碰撞”
-
-理解这一突变，最朴素的日常场景就是**新手司机倒车入库**：
-
-* **有倒车雷达的倒车（TDD 先红后绿）**：  
-  倒车雷达安装在车屁股后（黑屋外的物理探针）。当你挂入倒挡开始向后倒车时，如果车身偏斜快要蹭到侧方立柱，雷达蜂鸣器就必须疯狂发出“哔——哔——哔”的急促警报（Red 报错）；  
-  此时司机踩下刹车、回正方向盘微调角度，平稳滑入车位中央，直到蜂鸣器完全静止、仪表盘亮起入位成功的绿灯（Green 通过）。这个雷达就是外置传感器，它在事故发生前逼迫动作修正；
-* **没有倒车雷达、撞墙后自欺欺人（事后自测作弊）**：  
-  如果司机倒车时不看后视镜、也不装雷达，完全凭感觉一脚油门倒过去，“轰隆”一声把水泥墙撞塌了一个大窟窿；  
-  司机走下车，看着被砸凹的后备箱，不仅不认错，反而从口袋里掏出一张纸，用粗记号笔写上“此处已被市政规划为专用车位”，用胶带贴在被撞碎的墙洞上，向交警汇报说：“报告，停车非常精准，完全符合既定位置！”
-
-大模型先写代码再写测试的自测行为，本质上就是把墙撞塌之后，在墙上贴“此处允许碰撞”纸条的无耻勾当。
-
----
-
-### 二、 红绿断层的数学洗礼：0 bit 伪测试与反作弊信息增量
-
-在几乎所有介绍 TDD 的资料中，都会反复强调第一步的口诀：**“Red Before Green（先红后绿）”**。
-
-在 [`tdd` 说明与 FAQ 手册](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/docs/engineering/tdd.md) 中，Matt Pocock 明确列出了三项让测试套件沦为废纸的致命反模式，其中排在首位的就是**“同义反复（Tautological Tests）”**：
-
-> *“Expected value is recomputed the way the code computes it, so the test passes by construction. Expected values have to come from somewhere else: a known-good literal, a worked example, the spec.”*  
-> （预期值是按照代码计算的方式重新算了一遍，所以测试从构造上就注定通过。断言的预期值必须来自别处：已知的字面量常量、经过验证的算例、或者规格说明书。）
-
-为什么“先红后绿”是一条不可动摇的数学红线？
-
-#### 1. 理论发动机：定理六同源盲区与 0 bit 伪测试形式化证明
-
-我们在[《数学基石篇》](../agent-math-foundations/)§五.2 中形式化推导了**定理六（自测同源盲区与作弊）**。现在我们将这一理论工具直接切入大模型编写测试的因果链。
-
-设业务目标在物理机器上的真实状态为 $Z$，代码实现为 $A_{\text{impl}}$，测试用例为 $T_{\text{test}}$，测试执行输出为观测随机变量 $O \in \{\text{PASS}, \text{FAIL}\}$。
-
-##### (1) 事后补测试（Test-After-Code）的数学悲剧
-如果允许 Agent 先写出实现代码 $A_{\text{impl}}$，此时大模型的上下文工作台已被自身生成的代码完全污染（$C_t = (C_0, A_{\text{impl}})$）。模型在生成测试用例 $T_{\text{test}}$ 时，注意力机制会无条件偏向上下文内既有的实现逻辑。系统构成马尔可夫链 $(C_0, A_{\text{impl}}) \to T_{\text{test}} \to O$：
-
-$$
-P\big(O = \text{PASS} \;\big|\; C_0, A_{\text{impl}}, T_{\text{test}}\big) = 1
-$$
+from subscription import Subscription
 
 
-模型在写测试断言时，其注意力只会去读取自己刚刚写在实现里的临时变量与算法逻辑，产生严重的**同义反复反射镜（Tautological Mirror）**。例如在 TypeScript 中，模型会极其自然地写出：
+class SubscriptionTests(unittest.TestCase):
+    def test_cancel_stops_renewal_and_keeps_paid_date(self):
+        subscription = Subscription(
+            auto_renew=True,
+            paid_through=date(2026, 11, 30),
+        )
 
-```typescript
-// 伪测试典型灾难：预期值是用实现代码手抄了一遍
-test("calculateDiscount", () => {
-  const cart = { price: 100, userLevel: "VIP" };
-  // 错误的做法：在测试里重新把业务逻辑算一遍当 expected
-  const expected = cart.price * (cart.userLevel === "VIP" ? 0.8 : 1.0);
-  expect(calculateDiscount(cart)).toBe(expected);
-});
+        subscription.cancel()
+
+        self.assertFalse(subscription.auto_renew)
+        self.assertEqual(subscription.paid_through, date(2026, 11, 30))
+
+
+if __name__ == "__main__":
+    unittest.main()
 ```
 
-计算该测试运行结果在已知实现条件下的香农条件熵：
+在这两个文件所在目录运行：
 
-$$
-H\big(O \;\big|\; C_0, A_{\text{impl}}, T_{\text{test}}\big) = -1 \log_2(1) - 0 \log_2(0) = 0 \text{ bit}
-$$
-
-
-代入条件互信息不等式：
-
-$$
-0 \le I\big(Z; O \;\big|\; C_0, A_{\text{impl}}, T_{\text{test}}\big) \le H\big(O \;\big|\; C_0, A_{\text{impl}}, T_{\text{test}}\big) = 0 \implies \boxed{I\big(Z; O \;\big|\; C_0, A_{\text{impl}}, T_{\text{test}}\big) \equiv 0 \text{ bit}}
-$$
-
-
-**数学审判**：事后补出的测试，其向系统注入的关于目标真实状态 $Z$ 的有效信息增量**精确等于零**！更致命的是，根据霍华德信息价值公理，无论这个测试跑多少次，它永远无法改变 Agent 的任何决策（$\frac{\partial a^*}{\partial O} = 0 \implies \operatorname{VoI}(O) \equiv 0$）。它只是一段消耗电费的同义反复废话。
-
-##### (2) 先红后绿（Red-Before-Green）的信息跃迁
-相反，当系统强制执行“先写测试且必须在基准代码上报错”时：
-1. 此时 $A_{\text{impl}}$ 在物理上尚不存在，断言中的预期值无法抄袭实现，必须强制锚定在外部独立的规格字面量上（例如 `expect(calculateDiscount(cart)).toBe(80)`）；
-2. 测试在当前基准提交点（Base Commit）上执行，环境传感器吐出确定性的红灯（$O = \text{FAIL}$）：
-
-$$
-P\big(O = \text{FAIL} \;\big|\; C_{\text{base}}\big) = 1
-$$
-
-
-这证明了该测试具备**真实的反事实证伪能力（Counterfactual Falsifiability）**；
-3. 接着 Agent 编写最小实现代码，执行测试触发状态跳变：$\text{FAIL} \to \text{PASS}$。这个跳变打破了零信息平衡，系统获得的有效信息增量为：
-
-$$
-\Delta I_{\text{有效}} = \log_2 \frac{1}{P(\text{FAIL} \to \text{PASS} \text{ by chance})} \gg 0
-$$
-
-
-只有这台传感器真实报过红，它的绿灯才具有信息论上的真值担保！
-
-```mermaid
-flowchart LR
-    subgraph 事后补测试["事后补测试：同义反复虚假镜像 (0 bit 信息)"]
-        A1["写出实现代码 (包含潜在 Bug)"] --> B1["注意力同源偏置<br>按照实现逻辑抄写测试断言"]
-        B1 --> C1["一次性全绿 (PASS)"]
-        C1 --> D1["ΔI ≡ 0 bit (毫无证伪能力，生产当场暴雷)"]
-    end
-
-    subgraph 先红后绿TDD["TDD 严格闭环：反事实证伪跃迁 (ΔI ≫ 0)"]
-        A2["从独立规格中提取字面量断言"] --> B2["【物理核验 1】基准代码上强制跑红 (RED)"]
-        B2 --> C2["编写刚好能跑通的最小业务代码"]
-        C2 --> D2["【物理核验 2】外部机器验证变绿 (GREEN)"]
-        D2 --> E2["ΔI ≫ 0 (获得不可篡改的真值校验担保)"]
-    end
+```bash
+python -m unittest -v test_subscription
 ```
 
-#### 2. 生活常识类比：木工做榫卯的规矩尺 vs 顺着废木头边缘画线
+初始版本中，`cancel()` 还什么都没做，`auto_renew` 仍是 `True`。因此测试应当在 `assertFalse` 处失败，显示类似 `True is not false` 的断言信息。这是 **Red**：我们看见当前版本没有满足这条已写出的行为要求。
 
-这一信息论反差，恰如民间**木工师傅打造传统榫卯家具**：
+为什么要看失败原因，而不是只看见终端报错就算完成 Red？如果失败是因为文件名打错、依赖没装好，或者测试本身语法错误，我们只知道测试没能正常运行，还不知道它能不能分辨“取消成功”和“没有取消”。修好环境或测试错误后，应该重新运行，直到看到与预期行为差异相符的失败。
 
-* **合格木工的规矩（先红后绿）**：  
-  师傅要做一个凸出的木榫插进桌腿的卯眼里。他绝不会凭肉眼随便砍木头。  
-  他先拿出一把淬火精钢的**直角规矩尺（独立的外部测试套件）**，在木头上画死标准长宽（测试用例）。  
-  他把刚粗加工的木头往桌腿孔里硬塞——**根本塞不进去（Red 报红，测试先失败）**；  
-  随后，木工拿起极细的钢刨，小心翼翼地刨掉一小层薄木屑（编写最小实现），再往里试拼；又卡住，再刨一刀；直到“咔嗒”一声，木榫严丝合缝、纹丝不动地锁死在卯眼里（Green 变绿）。这把椅子用上一百年也不会摇晃；
-* **劣质木工的无赖（事后补测）**：  
-  劣质木工拿起斧头对着木头一通胡乱砍伐，把一块方木削成了凹凸不平、毫无形状的烂木渣（充满 Bug 的实现）。  
-  接着他拿出一根铅笔，贴着这块烂木头曲折扭曲的边缘，在纸上顺着它的边缘描了一圈形状，然后郑重其事地盖上图章，吹嘘说：“大家看，这块木头完全符合我刚刚画出的工程图纸（事后同义反复断言）！”
+接下来，在 `subscription.py` 里把 `Subscription` 类中的方法改成下面这样。方法前保留四个空格，方法体再缩进四个空格：
 
-把大模型放任在没有先红后绿的温室里，它制造出来的每一行测试，都不过是在为烂木头描边。
-
----
-
-### 三、 为何杀死“Refactor”？—— 从三步循环到单向收敛的权力割离
-
-在全世界所有经典的敏捷教材中，TDD 的口诀从来都是神圣的三部曲：  
-**Red $\to$ Green $\to$ Refactor（红 $\to$ 绿 $\to$ 重构）**。
-
-然而，翻开 Matt Pocock 技能库中的 [`tdd.md`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/docs/engineering/tdd.md)，任何一个受传统软件工程熏陶的开发者都会被其中的一段白纸黑字所震撼：
-
-> **`Refactoring is not part of the loop.`**  
-> *“The skill dropped it in June 2026 because agents almost never performed it, and because review and implementation work better as separate sessions. Refactoring belongs to `code-review`.”*  
-> （重构不是本循环的一部分。该技能在 2026 年 6 月正式删除了重构步骤，因为 Agent 几乎从不执行它，而且将‘审查’与‘实施’拆分为独立的会话效果好得多。重构属于 `code-review` 技能。）
-
-这并不是 Matt Pocock 偷懒，而是一场长达数月的大规模工业翻车换来的**冷酷相变**。
-
-为什么大模型“几乎从不执行重构”？为什么如果强行保留重构，Agent 就会陷入可怕的混沌？
-
-#### 1. 理论发动机：双目标干扰与定理七（裁判员与运动员绝对隔离）
-
-我们从控制论与动力学的第一性原理，剖析大模型在单会话内面对复合指令时的生理冲突：
-
-##### (1) 目标函数的空间正交冲突
-* **Red $\to$ Green 的数学本质**：是**局域极小化求解（Local Minimization）**。  
-  它是一个“单目标收敛任务”——以最短的编辑距离、最小的代码变动，让外部环境抛出的 Exit Code 从非零变为零。此时系统的全部算力必须高度聚焦在“跑通”上；
-* **Refactor 的数学本质**：是**全局流形拓扑重构（Global Structural Optimization）**。  
-  它要求跳出局部的变量与函数，审视整个模块的深浅（Module Depth）、消除 Fowler 坏味道、提取抽象接缝。
-
-当你在同一个 Prompt 循环里命令 Agent：*“请先让测试变绿，然后顺手重构一下代码使其更优雅”*，大模型在自回归推演时会产生剧烈的**双目标干扰（Dual-Objective Interference）**：
-* 模型为了所谓的“抽象解耦”，往往会过度设计（Over-engineering），凭空引入三层不必要的工厂类与适配器，导致刚刚变绿的测试重新报红；
-* 面对重新变红的测试，模型惊慌失措地开始修复，结果在重构与修 Bug 之间来回震荡，把本来干净的代码改成了面目全非的垃圾；
-* 最终，模型为了平息冲突，最常见的本能就是**选择性装聋作哑——直接跳过 Refactor 阶段，假装自己已经做完了**。
-
-##### (2) 定理七（裁判员与运动员的绝对隔离）
-我们在[《数学基石篇》](../agent-math-foundations/)§五.3 中证明了**定理七（验证独立性定理 —— 运动员与裁判员绝对隔离）**：**执行生产动作的实体，在拓扑上绝对禁止兼任对该动作的质量裁判**！
-
-一个刚刚为了让测试变绿而殚精竭虑写出 Dirty Hack 的 Agent（运动员），它的上下文里浸泡着所有局部实现的细节偏置。让它在同一个会话里以冷静客观的眼光审视自己的架构异味（裁判员），在认知上是根本不可能的。
-
-因此，**将 Refactor 彻底剥离出 TDD 实施循环，是一次极其伟大的架构单向关闸**：
-* `tdd` 技能只做一件事：**单向收敛，红变绿，落地落盘！**
-* 至于代码架构是否深厚、有无异味、是否需要重构，全部移交给下工序拥有全新独立上下文的专用法官——[`code-review`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/code-review/SKILL.md) 技能去独立审判！
-
-```mermaid
-flowchart TD
-    subgraph 传统TDD死锁陷阱["传统三步法：双目标冲突与自我裁判死循环"]
-        R1["Red: 写出失败测试"] --> G1["Green: 编写代码跑通"]
-        G1 --> RF1["Refactor: 试图优化结构<br>(破坏原有测试 ➔ 陷入震荡死循环)"]
-        RF1 -.->|"又改红了"| R1
-    end
-
-    subgraph Pocock解耦架构["Pocock 解耦架构：相变关闸与三权分立"]
-        subgraph 实施Agent工作台["【实施会话: tdd】局域极小化极速收敛"]
-            R2["Red: 失败测试"] --> G2["Green: 最小代码变绿"]
-            G2 --> C2["【落盘提交】物理关闸，结束本会话"]
-        end
-
-        subgraph 独立裁判Agent工作台["【审查会话: code-review】全局拓扑优化"]
-            C2 --> CR["全新干净上下文<br>持 Fowler 坏味道标准单向审判"]
-            CR --> RF2["独立派发 Refactor 工单"]
-        end
-    end
+```python
+    def cancel(self):
+        self.auto_renew = False
 ```
 
-#### 2. 生活常识类比：颠勺厨师尝咸淡 vs 拆洗抽油烟机
+再次运行同一条测试命令。现在应看到一项测试通过：取消后自动续费已关闭，付费到期日仍为 11 月 30 日。这是 **Green**。
 
-这好比一家火爆餐馆后厨的**岗位分工**：
+下面这幅流程图由本文对红绿循环的理解归纳；其中“检查失败原因”和“测试未正常运行时先修复”是为了说明验证过程，不是说 Skill 文件会替我们自动完成全部判断。
 
-* **做菜时的炒菜师傅（Red $\to$ Green 的实施 Agent）**：  
-  灶台前大火猛烈，炒菜师傅右手颠勺、左手倒酱油，唯一的使命是**把这道菜的味道调对**。  
-  他拿出一根干净筷子，在锅里蘸了一点汤汁放嘴里尝一口（测试传感器）——“太淡了（Red）”；  
-  他立刻抖了一小勺盐放进锅里，翻炒两下再尝一口——“咸淡正好，出锅装盘（Green）”！  
-  这个过程必须在 30 秒内一气呵成，决不能有任何分心；
-* **如果逼厨师同时做 Refactor 会发生什么？**  
-  如果店长给炒菜师傅立下规矩：“每炒完一道菜，在装盘前，必须顺手把整个灶台擦得锃亮反光，并把头顶的抽油烟机大卸八块拆下来彻底清洗一遍（Refactor）！”  
-  结果可想而知：师傅锅里的油还在狂冒黑烟，菜已经在锅里彻底烧成焦炭，师傅满手是油污还要拆螺丝，后厨瞬间陷入大灾难！  
-* **现代后厨的做法**：炒菜师傅只管尝咸淡颠勺，菜炒好立刻端走。等打烊闭店后，由专门的夜班保洁阿姨（拥有独立上下文的 `code-review`）戴着橡胶手套，专心致志地把抽油烟机彻底拆洗干净。
+![一次行为的测试与反馈循环](images/tdd-feedback-loop.png)
 
-分工不是妥协，分工是对物理常识的敬畏。
+这盏绿灯有明确的边界：它告诉我们，**在这组输入与当前环境下，执行这个方法后，两条断言成立**。它没有调用真实支付服务，没有检查 11 月 20 日是否能访问会员内容，也没有证明重复取消、时区处理和所有边界日期都正确。那些行为如果属于任务要求，还需要进一步设计测试或其他验证。
 
----
+也请注意，示例把两个紧密相关的验收结果放在同一个测试里，是为了让读者看清一次取消操作的前后状态；具体项目可以按行为和失败定位需要拆分。第一次断言失败时，后面的日期断言不会继续执行，所以第一次 Red 只能说明续费状态不符合预期，不能声称两条要求都已经被分别检测过。
 
-### 四、 接缝（Seam）的物理防线：拒绝砸墙戳铜线与假开关欺骗
+Matt 的本地 [`tdd` 规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/SKILL.md)强调每次在已约定的接缝上，先写一个失败测试，再写足够让它通过的实现，然后继续下一项行为。这里的一次小循环，是上一张 Ticket 内部更细的反馈机会：上一轮发现什么，可能改变下一轮应该测什么、怎么实现。
 
-在 [`tdd/SKILL.md`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/tdd/SKILL.md) 中，Matt Pocock 确立了一条全篇最高频的强制约束：
+这里还有一个版本差异：传统 TDD 常被描述为 Red → Green → Refactor，即测试通过后整理结构、消除重复，再进入下一轮。而我们分析的这份本地 Skill 快照，将循环明确写成 Red → Green，规范说重构属于后续审查阶段。仓库说明给出的理由是：Agent 往往不执行循环内的重构，作者也倾向把实现与审查分开。这是该版本的工程取舍，不是对 TDD 唯一正确形式的宣判。[来源：`tdd` 说明](https://github.com/mattpocock/skills/blob/4ae2317/docs/engineering/tdd.md)
 
-> **`Test only at pre-agreed seams.`**  
-> *“A **seam** is the public boundary you test at: the interface where you observe behavior without reaching inside. Tests live at seams, never against internals. Before writing any test, write down the seams under test and confirm them with the user. No test is written at an unconfirmed seam.”*  
-> （只能在预先商定的接缝处写测试。接缝是你观察系统外部行为而不触碰内部细节的公共边界。测试存在于接缝处，绝不针对内部。在写任何测试之前，必须写下打算测试的接缝并向人类确认。严禁在未经确认的接缝上写任何测试。）
-
-为什么接缝如此神圣？为什么 Agent 天生喜欢违背接缝？
-
-#### 1. 理论发动机：深模块隔离与接口耦合维护爆炸
-
-我们在[《第三篇：驯服长程循环》](../agent-harness/)中，借用 John Ousterhout 的《软件设计的哲学》推导了**深模块（Deep Modules）**原理：最好的模块，是拥有极简浅显的对外接口，而将极度复杂的逻辑封装在内部。
-
-##### (1) 实现耦合（Implementation-Coupled）的反模式代价
-如果放任大模型自由发挥，大模型最容易写出**“与实现细节紧密耦合的恶劣测试”**：
-* 测试私有方法（Private methods）；
-* 验证函数内部私有子组件的被调用次数（`expect(mockPayment.process).toHaveBeenCalledTimes(1)`）；
-* 绕过公共 API，直接用 SQL 去查询数据库底层的一张中间缓存表。
-
-这种测试在信息论上具有毁灭性的系统副作用：  
-**它把内部实现细节硬编码成了外部约束！**  
-设系统发生了一次不改变对外行为的纯内部重构（如把冒泡排序优化为了快排，或者把内部的一个私有辅助函数拆成了两个）：
-* 系统的外部意图 $Z$ 毫无改变；
-* 但所有依赖私有实现的脆弱测试**全面变红瘫痪**！
-* 工程师必须花费数天时间去重写这些没有价值的测试，**系统的终身维护成本急剧发散（$\operatorname{Cost}_{\text{maintain}} \to \infty$）**。
-
-一个好的测试，只测试“系统能为调用方提供什么能力（WHAT）”，而绝对不在乎“系统在底层是如何做到的（HOW）”。代码可以彻底翻天覆地，只要公共接缝处的输入输出行为没变，测试就必须岿然不动。
-
-##### (2) Mock 的神圣红线
-在 [`mocking.md`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/tdd/mocking.md) 中，Pocock 划定了一条不可逾越的隔离带：
-* **只能在系统的外部物理边界进行 Mock**：外部第三方 HTTP 支付接口（Stripe）、真实物理时钟（Time）、随机数生成器、外部邮件网关；
-* **严禁 Mock 属于自己的模块与类**：绝不能 Mock 自己工程里的业务类或内部协作者！
-
-为什么？因为一旦你 Mock 了自己掌控的模块，你实际上是在用一个虚假的假想模型替换了真实代码。大模型在自己编造的假环境里自嗨变绿，到了物理世界上线时，两个真实模块之间的协议不匹配会立刻引发血光之灾。
-
-#### 2. 生活常识类比：家里电箱的空气开关 vs 剥开墙皮戳铜线
-
-这完全等同于普通家庭排查**室内电路安全**的常识：
-
-* **正规电工的做法（在接缝 Seam 处测试）**：  
-  电工检查全屋电路，他的测试接缝就是玄关墙上的**配电箱空气开关（公共接口）**。  
-  他按一下漏电保护测试按钮，或者拉下总闸，看客厅的电灯是否应声熄灭；推上去，看灯是否正常亮起。  
-  不管墙壁内部走的是 PVC 管还是镀锌铁管，不管电线在石膏板吊顶里转了几个弯（隐藏的内部实现），只要总闸一拉全屋断电，这套电路就是安全合规的；
-* **无良业余游击队的做派（实现耦合与假开关自欺）**：  
-  如果一个游击队员为了“检测电路”，拿着大铁锤把你家客厅精装的乳胶漆墙面砸开一个大窟窿，把电线绝缘胶皮生生剥开，拿万用表的尖探针直接戳在水泥里的铜丝上（测试私有内部变量）；  
-  更荒唐的是，为了证明“插座能通电”，他根本不连外面的国家电网，而是从兜里掏出一节 1.5V 的玩具干电池和一盏小塑料发光二极管，自己接在电线两头，兴奋地向业主喊道：“看！小灯泡亮了，全屋通电完毕（Mock 内部模块）！”
-
-把测试探针戳在公共空气开关上，是工程理性；把墙壁砸烂戳铜丝、拿玩具电池自嗨，是典型的大模型测试恶疾。
+还要看实际职责：这里的 [`code-review` 规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/code-review/SKILL.md)主要组织两个审查方向并报告发现，并没有承诺自动完成所有重构。发现需要改善的代码之后，仍要有后续执行、重新测试与核对，才能把审查意见变成实际修改。
 
 ---
 
-### 五、 标本的暗斑：/tdd 的未竟之地与工程盲区
+### 四、从条件互信息看：红灯与绿灯分别增加了什么？
 
-作为一个严谨的第一性原理研究者，把外部标本按在解剖台上，不仅要看清它做对了什么，更要无情剖析它的设计妥协与盲区暗斑。
-
-Matt Pocock 的 `/tdd` 固然设计了精巧的接缝确认与红绿防线，但在真实的工业世界中，它依然撞上了三堵极其坚硬的现实之墙：
-
-#### 1. Issue #746 暴露的死穴：并不是所有代码都配跑 TDD
-在 [`docs/engineering/tdd.md`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/docs/engineering/tdd.md) 第 21 行，官方文档极其坦诚地记录了一个尚未解决的公开缺陷（[GitHub issue #746](https://github.com/mattpocock/skills/issues/746)）：
-
-> *“The skill decides WHERE the seams go, but nothing in it decides WHETHER a change is worth the loop at all. If you run it on a change with no independent source of truth to assert against, you get a test that restates the implementation.”*  
-> （该技能决定了测试接缝放在哪里，但它完全没有能力判断‘某项代码改动到底值不值得跑一次 TDD 循环’。如果你在一个缺乏独立真值源的代码改动上强行运行它，你必然会得到一个同义反复抄写实现的伪测试。）
-
-在软件工程中，存在着海量的**非确定性业务逻辑**：
-* 配置文件编写（YAML / JSON 配置）；
-* 纯界面 UI 样式调整（按钮从蓝色改成天蓝色）；
-* 类型标注与胶水层连线；
-* 简单的 CRUD 透传（Controller 仅仅把参数原封不动扔给 Service）。
-
-在这些场景下，根本不存在任何复杂的输入输出状态映射，也缺乏任何独立的规格真值源。如果你命令 Agent 强行在这些地方走 TDD，大模型受制于规则，只能生造出毫无意义的同义反复测试（如断言配置文件里的端口号等于 8080）。**这是形式主义对工程生产力的残酷反噬！**
-
-#### 2. 慢速测试（Playwright / E2E）对净信息价值（Net VoI）的降维打击
-在官方 FAQ 中记录了一个真实案例：一个开发者让 Agent 用 TDD 开发一个前端页面，Agent 自作聪明地在第一步就写了一个 Playwright 浏览器端到端测试。结果每修改一行代码，Agent 就启动一次无头浏览器，漫长地等待页面渲染和网络超时，循环跑了十多分钟，最后得出了一个荒谬的结论：“测试用例本身坏了”。
-
-用我们在[《数学基石篇》](../agent-math-foundations/)§四.2 确立的**信息净价值方程（Net VoI，核心方程二）**：
+现在用自己的理论，把刚才的过程再拆开。设 $Z$ 是**某个固定代码版本**在给定输入、环境下是否满足“取消后停止自动续费”这一行为；$C_{k-1}$ 是运行前 Agent 已经掌握的需求、代码和环境信息；$O_k$ 是测试运行返回的观察。按照[《数学基石篇》](/zhangmuchuan/blog/agent-math-foundations/)定义的单步反馈：
 
 $$
-V(a \mid C_t) = \Delta I_{\text{反馈}}(a) - \lambda \operatorname{Cost}(a) \equiv I(Z; O_{t+1} \mid C_t, A_t = a) - \lambda \operatorname{Cost}(a)
+\Delta I_{\text{反馈},k}=I(Z;O_k\mid C_{k-1})
 $$
 
+这不是说“每次运行测试都会得到固定数量的新信息”。它表达的是：相对于之前已有的上下文，可能出现的观察结果平均能帮助我们区分多少关于 $Z$ 的状态。
 
-TDD 能够维持正向收益的绝对前提，是**极速反馈与极低试错成本（$\operatorname{Cost}(a) \approx 0$）**。  
-一旦把笨重、缓慢的端到端浏览器测试引入 TDD 循环：
-* 单步时间成本发散（$\operatorname{Cost}(a) \to \infty$）；
-* 异步网络波动与 UI 渲染延迟引入了大量与业务目标 $Z$ 无关的环境随机性，导致测试观测输出对目标状态的条件互信息直接归零（$I(Z; O \mid C_t) \to 0$）；
-* 海量的无头浏览器报错日志倒灌回上下文，不仅带来注意力稀释，更让整个循环的信息净收益直接跌穿地平线：$V \ll 0$。
+在上面的 Red 阶段，实际输出 `True is not false`，告诉我们：在该次运行和断言执行到的位置，当前对象的续费状态仍为真。这个结果可以促使 Agent 去修改取消逻辑，而不用只凭“我觉得应该关闭了”继续推演。
 
-**TDD 必须永远只活在毫秒级执行的轻量单元与集成接口层！浏览器端到端测试只能在最终验收阶段由外部 Harness 统一挂载。**
+但这个极简例子恰好能让我们看见数学模型的边界：初始方法是 `pass`，输入是 `auto_renew=True`，它们在正文里已经写明。若把确定程序行为所需的代码、输入和环境全部纳入 $C_{k-1}$，且运行无随机性，那么一个具有无限计算能力的观察者已经可以由这些条件推断结果；在该模型下，不应声称这次运行必然带来正的条件互信息。实际 Agent 不具备免费、无误完成所有计算的能力；运行仍能把结果显式呈现出来，提供一份可核对的执行记录，并节省手工推演或发现错误的成本。
 
-#### 3. 大模型预训练偏置的自回归惯性反扑
-在官方手册中记录了另一幕令人啼笑皆非的真实对话：  
-一位用户质问 Agent：*“技能规则里明明用大写加粗写着‘必须先写失败的测试’，你为什么还是先写了实现代码？”*  
-大模型给出了一个极其老实的回答：  
-*“我知道技能规则说了先测试后实现。我读过了。但我刚才只是遵循了我的日常习惯（defaulted to my normal habit）。”*
+换成另一个情形：重新把分析目标 $Z$ 定义为“数据库中目标记录是否存在”。如果测试连接的是 Agent 还不知道当前状态的真实测试数据库，运行前它不知道目标记录是否存在，且读取结果能够区分“记录已存在”和“不存在”，这次外部观察就可能相对于已有 $C_{k-1}$ 带来条件信息增量。它是否带来增量，要看观察前已知什么、环境怎样产生结果，而不能只看有没有运行命令。
 
-大模型的所谓“日常习惯”，就是它在海量预训练语料中吞噬过的、成百上千万人类开发者的真实 GitHub 仓库——在物理现实中，绝大多数人类程序员本来就是先写实现后补测试的！  
-这种深植于权重深处的条件概率分布，不是写一两句提示词就能彻底洗脑的。**光靠自然语言提示词约束大模型，永远存在不可消除的概率泄漏。真正的工程闭环，必须依靠外部代码沙箱的机械钩子（Git Hook / Harness 权限截断）进行物理硬拦截！**
+然后代码发生了修改。Green 测试面对的是**另一个代码版本**：同样的输入与断言在新版本上通过，说明这个版本在该用例下满足了测试所写的条件。新旧版本不是同一个固定状态，所以不能把两次观察不加区分地当作对同一个静态随机变量机械累加。
+
+红、绿连在一起，还增加了一种有用的比较：在这次受控改动前，测试因目标行为不满足而失败；改动后，同一测试通过。这增强了我们对“本次改动使这个用例通过”的信心。可是这里仍要检查：测试内容、输入和运行环境是否相同？是否同时改了断言？失败是否真由目标行为导致？如果测试被跳过、断言被删，或者两次环境差异很大，红绿颜色就可能误导判断。
+
+同样，条件互信息是对可能结果的**期望**；某一次具体失败也许让我们发现之前没想到的情况，反而暂时增加疑问。信息增量也不等于决策收益：一次测试就算揭示了某种差异，是否值得为它调整下一步，还取决于影响、成本和任务目标。
+
+这也是上一篇对[信息价值方程](/zhangmuchuan/blog/matt-pocock-skills-05/)做的压力测试：互信息衡量对状态不确定性的减少，决策意义上的信息价值衡量信息能否改善行动及其效用；两者不能不加条件地直接等同。要不要再跑一次检查，不能只问“能不能多知道一点”，还要问“不同结果会不会改变接下来的行动，获取它要花多少”。
 
 ---
 
-### 六、 全景大图：从意图碰撞到物理闭环的齿轮啮合
+### 五、同一个人写代码和测试，为什么可能一起看错？
 
-行文至此，Matt Pocock 技能全家桶的核心主轴，在我们的理论透镜下彻底咬合为一座因果相扣的精密机器：
+回到开头那个测试全绿却做错了需求的会员功能。真正的用户要求是“取消后到期前仍可用”，Agent 却理解成“取消后立刻失效”。假如它先按照自己的理解写测试，再让实现通过，过程同样可以很规范地先红后绿：
 
-```mermaid
-flowchart TD
-    G["1. 意图博弈: grill-with-docs<br>汲取人类默会知识 (人机交互反馈 ΣΔI)"]
-    G -->|"阶段切分 ➔ 权力关闸"| S["2. 规格结晶: to-spec<br>凝固前馈事实, 锁定唯一接缝 (Seam=1)"]
-    S -->|"马尔可夫切片 ➔ 拓扑排序"| T["3. 施工编排: to-tickets<br>垂直示踪弹 (Tracer Bullets), 排定前沿 DAG"]
-    T -->|"单票单会话 ➔ 物理装配"| TDD["4. 闭环收敛: tdd (本篇)<br>架设外置本体传感器, 先红后绿 (P 轴反作弊)"]
-    TDD -->|"单向关闸 ➔ 交付制品"| CR["5. 双轴审判: code-review<br>三权分立隔离, 接管 Refactor 与架构异味"]
+1. 先写测试：取消后查询会员，预期立即失效。
+2. 运行初始程序：它还没有这个行为，测试失败。
+3. 修改实现：取消后立刻关闭权益。
+4. 再运行测试：测试通过。
 
-    classDef stage fill:#f8f9fa,stroke:#333,stroke-width:1px;
-    class G,S,T,TDD,CR stage;
+整个 Red → Green 过程都可能真实发生，而最终结果仍然偏离用户意图。问题出在**测试预期和实现共享了同一个错误理解**。红灯告诉我们旧代码与那条测试期望不一致，绿灯告诉我们新代码符合它；这两盏灯本身无法决定那条期望是不是用户真正需要的。
+
+这正是《数学基石篇》定理六希望提醒我们的“同源盲区”。但要进一步校准它的数学表述：**测试与代码由同一个 Agent 编写，并不能单独推出测试结果对真实需求的条件互信息必然为零。** 如果 Agent 阅读了准确规格、使用独立算例或运行了能暴露实现缺陷的测试，结果仍可能提供有价值的证据；只是当断言与实现都沿用同一处需求误解时，这条共同错误可能不会被测试发现。
+
+想象老师给学生判乘法。标准答案如果由另一位老师根据题目算好，学生的答案就能和它比较；但如果评分人直接拿学生答案抄进答案栏，再宣布两者一致，整份试卷即使满分，也看不出学生算得对不对。实际写测试不必真的有第二个人坐在旁边，但**预期结果必须能追溯到可信依据**，例如已确认的业务规则、人工核对过的例子，或独立维护的参考结果。
+
+看看另一种“答案照抄答卷”的情况。假设实现里不小心把折扣从 20% 写成 25%，而测试也复制同一段错误计算：
+
+```python
+def price_after_discount(price):
+    return price * 0.75  # 假设这里错误地把八折写成了七五折
+
+
+def test_discount():
+    price = 100
+    expected = price * 0.75  # 测试又照抄了相同的错误
+    assert price_after_discount(price) == expected
 ```
 
-我们通过一张全景对照表，审视这套流水线是如何将抽象的哲学公理逐层降维为可落地的代码比特：
+测试会通过，因为两边都算出 75。若已确认的业务要求是“100 元打八折后应付 80 元”，用这个经过核对的具体结果作期望，才有机会让该错误实现失败。
 
-| 技能阶段 | 承担的理论使命 | 物理本质机制 | 严禁触碰的死穴 | 核心交付物 |
-| :--- | :--- | :--- | :--- | :--- |
-| **`grill-with-docs`** | 意图空间探索与降维 | 汲取人机交互动态反馈（$\sum \Delta I$） | 严禁过早写代码；杜绝假性共识 | 架构决策记录（ADR） |
-| **`to-spec`** | 阶段切分与权力关闸 | 将反馈冷冻为实施前馈；锁定唯一接缝 | 严禁目标无限膨胀；严禁未冻结就动工 | 锁死非目标边界的 Spec 工单 |
-| **`to-tickets`** | 马尔可夫切分与拓扑调度 | 垂直切片（Tracer Bullets）；按前沿（Frontier）并发 | 严禁横向切层（75% 返工）；严禁并发抢跑 | 独立文件工单集（`.scratch/issues/`） |
-| **`tdd`（本篇）** | **外置物理本体传感器** | **在黑屋外架设 $\mathbf{P}$ 轴传感器；先红后绿反作弊** | **严禁事后补测（0 bit）；严禁在循环内混入 Refactor** | **全绿自动化测试套件与最小实现** |
-| **`code-review`** | 运动员与裁判员绝对隔离 | 独立上下文执行双轴审查；专职接管架构重构 | 严禁自我审查；严禁将重构压力推给实施 | 具备工业级信誉的 Pull Request |
+当然，即使写下 `80`，也还要追问它是怎样来的：如果那是 Agent 根据错误理解随手猜出的数字，它仍可能与真实规则不符。[`tests.md`](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/tests.md)反对的是预期值机械复算实现逻辑，建议使用规格、已知正确数值或经过核对的算例。这降低了某些同源错误的风险，却不会自动保证需求来源正确、测试不可修改，或者 Agent 永远不会为了过关而放宽断言。
+
+[播客访谈](https://www.youtube.com/watch?v=4DhcSPkEbwI)中，Matt 把 Agent 需要反馈看得很重，也提到先看到失败再修复会让某些虚假通过更难蒙混过去；他同时表达了对 TDD 的保留，并指出 Agent 会写出同义反复测试。**“更难蒙混”不等于“物理上不可能作弊”**：如果同一个执行者能随意改测试、测试基准和报告，仍需审查变更、保护关键验收依据，并在风险相称的场景引入独立验证。
 
 ---
 
-### 七、 结语：给黑屋装上光电探针
+### 六、从哪里看程序，才不会把内部改造误当失败？
 
-在智能体技术狂飙突进的今天，许多人误以为大模型无所不能，甚至狂妄地宣称“有了大模型，测试已经过时，一切都可以交给 AI 自由发挥”。
+假设你点了一份外卖。你关心的是：商家是否收到订单、备注“不放香菜”是否生效、最后送来的餐是否正确。厨房原来安排两个人分别处理配菜和打包，后来改成一个人负责这两步，只要结果和约定没有变，你不需要因为人员分工变化就重新下单。
 
-然而，信息论与控制论的客观规律不会因为任何人的狂热而动摇：
-* **大模型的参数规模再扩大十倍，它依然身处黑暗的黑屋之中；**
-* **它的上下文再扩张十倍，也无法无中生有地创造出黑屋之外物理机器的运行真值。**
+软件也有相似问题。假设会员系统原来由 `PaymentService` 通知 `SubscriptionService`，后者再调用 `AccessService`；后来团队把内部逻辑合并到一个模块。若测试只断言内部某个私有方法被调用过，方法一改名、调用路径一调整，测试就可能失败。可从用户能观察到的接口看，取消后停止续费、付费权益保留的行为也许仍然正确。
 
-TDD 不是上一个时代的陈腐遗迹，更不是写给敏捷大师们看的公关教条。它是我们在人类工程学向大模型工程学迁徙的狂风暴雨中，为这个充满概率幻觉、自测作弊与同义反复的硅基大脑，亲手戴上的第一副不可篡改的机械手铐，是在黑暗墙壁上凿出的第一扇光电探针之窗。
+在我们的恒温器框架里，测试相当于选一个观察位置。观察点放在哪里，决定我们看见什么，也决定了测试会随着哪些变化而失效。如果我们要判断的是**调用者能否得到正确行为**，优先通过稳定的公开接口输入、读取结果，通常能减少对内部组织方式的依赖。这里的接缝可以是一个函数、模块公开接口，也可以是 HTTP 接口；范围取决于我们要验证什么。
 
-**唯有在动手之前亲手引爆红灯，大模型在黑屋深处递给你的那一抹绿色，才配被称为通向物理现实的真理。**
+这不代表“单元测试被禁止”或“一个项目只能有一个接缝”。测试接缝回答从哪里交互和观察；单元测试、集成测试通常描述测试涉及的范围。一个测试可以针对独立模块的公开函数，也可以经过多个真实组件的公开入口。Matt 的 [`tdd` 规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/SKILL.md)偏好公开接口和已事先约定的接缝，并在配套[测试指南](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/tests.md)中强调集成风格；这不等于同一个词只能对应一种测试层级。
+
+外部依赖还带来一个取舍。如果每次测试都真的给用户发送邮件，既慢又会打扰人；我们可以在邮件服务的外部边界使用可控替身，记录准备发送的内容，而不真正发送。这样测试可以检查业务代码是否发起了符合预期的请求，但替身并不能证明真实邮件供应商当时一定可用、实际投递一定成功。真实集成仍需要合适的额外验证。
+
+仓库的 [`mocking.md`](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/mocking.md)规定只在外部服务、时钟、随机数等系统边界使用 Mock，不 Mock 自己控制的内部模块。背后的判断很具体：**如果我们想知道两个真实内部模块能不能正确配合，却把其中一个换成按自己假设编好的替身，测试就看不到那两个真实模块之间的一部分问题。** 具体场景仍需结合成本、风险与可观察行为权衡，不能把任何一种替身都当成天然无效。
 
 ---
 
-### 参考文献与一手资料
+### 七、局部测试、完整套件与审查：反馈的范围不同
 
-1. **理论基石系列**：
-   - [《数学基石篇：智能体第一性原理的形式化推导与极值收敛》](../agent-math-foundations/)
-   - [《第一篇：架构的必然演进 —— 从黑屋信息边界推导为什么通用模式走向 Agent Loop》](../agent-loop/)
-   - [《第二篇：控制权的收放艺术 —— 纯循环、Skill 与 Workflow 的连续光谱》](../agent-control/)
-   - [《第三篇：驯服长程循环 —— 从恒温器闭环推导 Harness 驾驭工程》](../agent-harness/)
-   - [《第四篇：走出代码温室 —— 为什么写代码的架构不能直接照搬到业务荒野》](../agent-business/)
-   - [《第六篇：穿越时间的 Context —— 从第一性原理看 Agent Memory》](../agent-memory/)
-   - 《判断更新》
-2. **Matt Pocock 系列专题**：
-   - [解构 Matt Pocock 的 Skills（一）：给跨会话 Agent 建一张项目地图](../matt-pocock-skills-01/)
-   - [解构 Matt Pocock 的 Skills（二）：当人自己也不知道想要什么](../matt-pocock-skills-02/)
-   - [解构 Matt Pocock 的 Skills（三）：让 Agent 一边动手，一边看见自己有没有走偏](../matt-pocock-skills-03/)
-   - [解构 Matt Pocock 的 Skills（四）：从相变结晶到接缝预埋，用 to-spec 锚定跨会话前馈](../matt-pocock-skills-04/)
-   - [解构 Matt Pocock 的 Skills（五）：从垂直切片到前沿调度，用 to-tickets 驾驭长程施工](../matt-pocock-skills-05/)
-3. **一手工程资料**：
-   - Matt Pocock, [tdd 技能规范 (`tdd/SKILL.md`)](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/tdd/SKILL.md)
-   - Matt Pocock, [Mocking 指南 (`tdd/mocking.md`)](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/tdd/mocking.md)
-   - Matt Pocock, [测试设计指南 (`tdd/tests.md`)](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/tdd/tests.md)
-   - Matt Pocock, [tdd 说明与 FAQ 手册 (`docs/engineering/tdd.md`)](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/docs/engineering/tdd.md)
-   - Pragmatic Engineer Podcast, [Claude Code: The greatest piece of software since the iPhone - Matt Pocock (播客访谈记录)](https://www.youtube.com/watch?v=4DhcSPkEbwI)
-   - Matt Pocock, [Skills 项目说明文档 (`README.md`)](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/README.md)
+TDD 是一种组织开发循环的方式；单元测试和集成测试描述测试覆盖的范围；Full Test Suite 指项目约定执行的一整套测试。三者不是互斥选项。
+
+以会员项目为例：开发取消订阅时，我们反复运行上面这个快速测试，观察当前行为；完成本张票后，再运行项目约定的完整测试集合，检查购买、续费和其他已覆盖功能是否因修改出现回归。测试可以由过去的人类开发者、以前的 Agent 或当前 Agent 编写；**运行完整套件是执行已有测试，不是自动为所有功能重新编写测试**。
+
+为了让这几种范围的区别更具体，我们在刚才的示例旁再加一个订阅服务。创建 `subscription_service.py`：
+
+```python
+class SubscriptionService:
+    def __init__(self, repository):
+        self.repository = repository
+
+    def cancel(self, user_id):
+        subscription = self.repository.get(user_id)
+        subscription.cancel()
+        self.repository.save(user_id, subscription)
+
+    def get_subscription(self, user_id):
+        return self.repository.get(user_id)
+```
+
+再创建 `test_subscription_service.py`。测试里的内存仓库替代了真实数据库，`deepcopy` 用来让读取和保存成为两个明确步骤：读取时拿到的是副本，如果服务忘了保存，仓库原来的记录不会因对象引用而悄悄改变，测试就有机会发现这个遗漏：
+
+```python
+import unittest
+from copy import deepcopy
+from datetime import date
+
+from subscription import Subscription
+from subscription_service import SubscriptionService
+
+
+class InMemoryRepository:
+    def __init__(self):
+        self.items = {}
+
+    def get(self, user_id):
+        return deepcopy(self.items[user_id])
+
+    def save(self, user_id, subscription):
+        self.items[user_id] = deepcopy(subscription)
+
+
+class SubscriptionServiceTests(unittest.TestCase):
+    def test_service_saves_cancelled_subscription(self):
+        repository = InMemoryRepository()
+        repository.save("u-1", Subscription(True, date(2026, 11, 30)))
+        service = SubscriptionService(repository)
+
+        service.cancel("u-1")
+
+        saved = service.get_subscription("u-1")
+        self.assertFalse(saved.auto_renew)
+        self.assertEqual(saved.paid_through, date(2026, 11, 30))
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+这里，前面的 `test_subscription.py` 直接检验 `Subscription` 的取消行为，可以作为一个单元测试例子；新的测试把真实的 `SubscriptionService` 与 `Subscription` 一起运行，再通过服务的公开查询方法观察保存后的状态，可以作为集成风格测试例子。内存仓库只是一种可控的替身；它并没有运行真实数据库，因此不能证明真实数据库的连接、事务或数据持久化正确。
+
+在上述四个 Python 文件所在目录执行：
+
+```bash
+python -m unittest -v
+```
+
+Python 的默认发现规则会运行该目录里匹配 `test*.py` 的测试；如果目录只放了上面两个测试文件，就会执行两项测试。这就是这个示例中“运行完整测试集合”的具体含义。若项目还有其他目录、单独配置或真实数据库测试，还要按项目自己的命令和约定检查，不能把这两项当作整个项目的完整套件。
+
+但“完整”要有范围。项目的 `python -m unittest` 或 `npm test` 实际包含哪些测试，取决于项目配置；浏览器测试、外部服务检查可能另有命令。就算整个套件通过，也只为已覆盖的条件提供证据。
+
+接着可以用审查补充另一类判断：实现是否符合项目约定、有没有遗漏规格中的行为、测试是否把需求写错。仓库的 [`code-review`](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/code-review/SKILL.md)将规范和规格作为两个独立审查方向。独立上下文有助于重新检查，但如果审查者只拿到同一份错误规格，也可能保留同样的盲区；独立审查不是对真实用户意图的自动保证。
+
+把这些放进 $(P,M,H)$ 的视角，运行测试的程序 $P$ 能执行给定规则并返回结果；模型 $M$ 可以分析复杂代码与语义，也可能犯相关错误；人 $H$ 能澄清真实意图、提供业务判据。这里的关键不是把每次修改都升级到最昂贵的审查，而是让验证来源、判断范围与错误后果相匹配。一次小改动和高风险支付变更，所需的验证投入可以不同。
+
+还有一个工程细节值得看清：当前本地仓库的 [`implement` 规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/implement/SKILL.md)要求实现时定期检查类型和单个测试文件，在结束时运行完整套件，再调用代码审查并提交。其[配套说明](https://github.com/mattpocock/skills/blob/4ae2317/docs/engineering/implement.md)也记录了一个缺口：审查命令只看提交到 `HEAD` 的差异，而流程安排在最终提交之前；如果没有中间提交，审查可能看不到工作区里的改动。有没有真的审到目标代码，比“流程里出现过 review”更重要。
+
+---
+
+### 八、反馈越快越好？还得把代价和判断范围一起算进去
+
+[《第二篇》](/zhangmuchuan/blog/agent-control/)提醒我们：每个步骤都要支付成本。测试有编写成本、运行延迟和后续维护成本，过度依赖一个很慢、容易受环境波动影响的测试，也可能让开发者花很久判断究竟是行为不对，还是测试环境出问题。
+
+沿用信息价值的思路，对一个候选验证动作 $a$，可以用下式作为比较框架：
+
+$$
+V(a\mid C_t)=\operatorname{VoI}(a)-\lambda\operatorname{Cost}(a)
+$$
+
+$C_t$ 是当前掌握的信息；$\operatorname{VoI}(a)$ 表示该验证的观察可能改善后续决策的价值；$\operatorname{Cost}(a)$ 包括编写、运行、定位失败和维护等代价，$\lambda$ 表示如何权衡这些代价。它不是让我们给每次测试臆造精确分数，而是把“多测一次有多大帮助”和“需要付出什么”放在一起考虑。这里的决策价值与上文条件互信息不同，不能未经条件直接当作同一个量。
+
+假设会员取消的核心计算可以通过一个一秒钟的模块测试验证；若每改一行都要启动完整浏览器、等待整个页面和外部网络，反馈可能太慢，让一次小循环付出过高代价。那可以先在合适的公开接口上运行较快测试，待行为稳定后，再用浏览器路径检查页面与后端的组合。当然，若某次变化的关键风险就在真实浏览器行为里，浏览器测试即使慢也可能很值得。速度、覆盖范围和可信度需要一起判断。
+
+本地 [`tdd` 说明](https://github.com/mattpocock/skills/blob/4ae2317/docs/engineering/tdd.md)记录过一个浏览器测试过早进入循环、导致长时间排查测试是否损坏的使用反馈；它并没有证明所有浏览器测试都不适合 TDD。文档还指出：当前 Skill 决定在哪里测，却不自动判断某项改动是否值得进入测试先行的循环。简单的配置或机械改动可能不值得为了流程本身增加一套脆弱测试；涉及资金、权限、状态转换等行为时，明确预期和取得可重复反馈的价值往往更高，但仍需根据实际风险决定。
+
+同样，Skill 中写了“先红后绿”，不等于每次执行都一定遵守。仓库说明记录过 Agent 读完规则后仍先写实现的情况。自然语言规则能引导行为，但要判断本次是否真的先看过有意义的失败，需要检查运行记录和实际变更；必要时可通过隔离权限、独立基准或人工审查加强保障，而不能把一段提示词当成不可绕过的门禁。
+
+---
+
+### 九、把一条行为做好，也要知道何时向上返回
+
+回看整条链：讨论和规格给出用户目标，一张 Ticket 把范围和验收条件带给执行者，TDD 则在实现中让程序反复回应“当前这个行为有没有达到写下来的预期”。这是一层套一层的反馈，而不是某一层取代其他所有层。
+
+假设 Agent 在实现取消订阅时发现：规格要求取消后保留权益，但支付服务的接口文档说明，某种取消方式会立即撤销付款授权。此时继续调整断言让测试变绿，可能掩盖了需求、外部能力与实现方案之间的冲突。更有价值的行动是把观察到的接口约束、尚待确认的影响和可选方案交回决策者；用户确认后，再更新相关规则与测试。
+
+也就是说，测试反馈不只可能让 Agent 改一行代码，还可能让团队回头审视一张票、一个接口选择，甚至一个先前形成的需求。**前提是反馈被正确记录并传给有权处理的人，而不是为了完成当前循环，把异常压成一句“已通过”。**
+
+下一篇，我们会继续追问：当代码与测试完成以后，怎样把测试、审查和提交中的证据连接起来，让工作真正交到下一位接手者手中？
+
+### 参考资料
+
+- [数学基石篇](/zhangmuchuan/blog/agent-math-foundations/)；[第三篇：驯服长程循环](/zhangmuchuan/blog/agent-harness/)；判断更新。
+- [上一篇：把任务切开之后](/zhangmuchuan/blog/matt-pocock-skills-05/)。
+- [tdd 技能规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/SKILL.md)、[测试设计指南](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/tests.md)、[Mock 指南](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/mocking.md)、[tdd 说明](https://github.com/mattpocock/skills/blob/4ae2317/docs/engineering/tdd.md)。
+- [implement 规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/implement/SKILL.md)、[implement 说明](https://github.com/mattpocock/skills/blob/4ae2317/docs/engineering/implement.md)、[code-review 规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/code-review/SKILL.md)。
