@@ -18,6 +18,7 @@ hero:
   lead: 一个记录技术、思考与写作的个人博客。
   actions:
     - { label: 读博客, url: blog/, icon: fa-solid fa-pen-nib, style: primary }
+    - { label: 读翻译, url: translations/, icon: fa-solid fa-language, style: ghost }
     - { label: 关于我, url: about/, icon: fa-solid fa-circle-info, style: ghost }
 
 cards:
