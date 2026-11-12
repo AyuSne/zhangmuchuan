@@ -504,5 +504,5 @@ DB_URL=postgres://user:pass@host:5432/enterprise_memory
 - [The components of agent memory](https://www.anthropic.com/research/components-of-agent-memory)（Anthropic 官方研究博客，详细披露了宝可梦实验、Stainless 维基演进、月见山悬崖纠错、Harvey LAB 及 CL-Bench 评测数据）
 - [记忆是环境的补集，Agent 没有壁垒](https://mp.weixin.qq.com/s/NpxvOj4_kj73Guu0C1wP_g)（老冯云数，深入剖析 DBA Agent 与环境上下文设计的物理边界）
 - [三分天下：为什么Agent Memory框架是死路](https://vonng.com/ai/agent-memory-framework/)（老冯云数，从系统架构与萨顿苦涩教训论证 Model / Harness / Database 三分天下）
-- [走出“海马体”迷雾：智能体记忆的物理真相与离线 Dreaming 的工程实战](../agent-memory-dreaming/)（专题长稿，详述推断距离光谱与 Dreaming 系统提示词架构）
-- [从第一性原理看“智能体记忆”：为什么独立框架是伪概念与长程状态的真实沉淀](../agent-memory-framework/)（专题长稿，剖析独立中间件的第三位置缺陷与冯·诺依曼结构映射）
+- [记忆是环境的补集：Agent 该记什么，又该什么时候回头看？](../agent-memory-dreaming/)（讨论记忆选择、环境查询与离线维护）
+- [从三分天下看 Agent 记忆：谁来决定记什么，又由谁保存？](../agent-memory-framework/)（讨论模型、Harness 和持久化载体的分工与记忆核验）
