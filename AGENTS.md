@@ -18,7 +18,7 @@ Single-context layout (`GLOSSARY.md` + `docs/adr/` at the repo root). See `docs/
 
 ## Build baseline
 
-This site uses OINK v1.4.0 with Hugo Extended 0.169.0 and Go 1.27.3. Keep local builds and CI on this baseline. Do not enable `--panicOnWarning` or `HUGO_PANICONWARNING`; keep warnings visible and review them. The upstream LibSass deprecation warning is accepted.
+This site uses OINK v1.5.1 with Hugo Extended 0.169.0 and Go 1.27.3. Keep local builds and CI on this baseline. Do not enable `--panicOnWarning` or `HUGO_PANICONWARNING`; keep warnings visible and review them. The upstream LibSass deprecation warning is accepted.
 
 ## Repository hygiene
 

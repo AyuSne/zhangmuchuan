@@ -19,7 +19,7 @@ $env:HUGO_MODULE_WORKSPACE = "off"
 hugo server --bind 127.0.0.1 --port 1313
 ```
 
-打开 <http://localhost:1313/>。首次运行会下载 OINK 模块（`v1.4.0`）。
+打开 <http://localhost:1313/>。首次运行会下载 OINK 模块（`v1.5.1`）。
 
 生产构建：
 
