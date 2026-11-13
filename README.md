@@ -31,7 +31,7 @@ hugo --cleanDestinationDir --gc --minify --environment production --printPathWar
 
 ## 写作
 
-新文章放在 `content/blog/<slug>.md`：
+新文章放在 `content/blog/<slug>/index.md`（一篇一个文件夹，图片放同目录）：
 
 ```yaml
 ---
@@ -45,7 +45,8 @@ tags: [标签]
 正文用 Markdown。站点结构：
 
 - 首页：`data/home/zh.yaml`（含 hero、最新文章、入口卡片）
-- 博客：`content/blog/`
+- 博客：`content/blog/<slug>/index.md`
+- 翻译：`content/translations/<slug>/index.md`（收录中文译文，注明原作者与原文；流程见使用手册第 3.5 节）
 - 关于：`content/about.md`（页面外壳，`layout: landing`）+ `data/landing/about/zh.yaml`（正文）
 
 ## 部署
