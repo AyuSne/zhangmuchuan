@@ -31,7 +31,7 @@ Agent 在屏幕上打出一行清爽的回答：“明白，已记录。”
 
 你确实说过。但**昨天的你说过，绝不等于今天接班的 Agent 能够准确提取；更不等于它能在长达几十轮的杂乱对话里，一眼认出哪句话彻底推翻了前面的草案。**
 
-为了解决这种普遍的跨会话交接事故，Matt Pocock 设计了一款核心技能——[`to-spec`](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/to-spec/SKILL.md)：在漫长的澄清访谈结束时，将所有的有效共识提炼固化为一份标准的设计规格说明（Spec），直接发布到项目的任务跟踪系统中。
+为了解决这种普遍的跨会话交接事故，Matt Pocock 设计了一款核心技能——[`to-spec`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/to-spec/SKILL.md)：在漫长的澄清访谈结束时，将所有的有效共识提炼固化为一份标准的设计规格说明（Spec），直接发布到项目的任务跟踪系统中。
 
 这个做法表面上看再自然不过，但只要我们把它放回信息论的显微镜下，一个极具张力的悖论立刻浮出水面：
 
@@ -65,7 +65,7 @@ Agent 在屏幕上打出一行清爽的回答：“明白，已记录。”
 
 把这个场景平移到大模型的多会话协作中，物理机制完全一致。
 
-在[《数学基石篇》](/zhangmuchuan/blog/agent-math-foundations/)与《判断更新》中，我们推导过阶段切分推论（Phase Cut Handover）：在目标固定且信息无损传递的理想条件下，准备阶段积累的交互反馈，在切分点 $\tau$ 转化为实施阶段的前馈：
+在[《数学基石篇》](/zhangmuchuan/blog/agent-math-foundations/)与本系列此前的分析中，我们推导过阶段切分推论（Phase Cut Handover）：在目标固定且信息无损传递的理想条件下，准备阶段积累的交互反馈，在切分点 $\tau$ 转化为实施阶段的前馈：
 
 $$
 I_{\text{实施前馈}} = I_{\text{初始前馈}} + \sum_{k=1}^{\tau} \Delta I_{\text{准备阶段}, k}
@@ -285,7 +285,7 @@ Matt Pocock 在其技能规范中虽然曾给出极端的愿景“整个代码�
 现实会给所有迷信文档的开发者上一堂生动的时间物理课。
 
 #### 1. 事实静默过期（Silent Staleness）：为什么 Spec 严禁写具体路径？
-翻开 Matt Pocock 的 [`to-spec` 技能规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/to-spec/SKILL.md)，在 `## Implementation Decisions` 说明中赫然写着一条严厉的禁令：
+翻开 Matt Pocock 的 [`to-spec` 技能规范](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/to-spec/SKILL.md)，在 `## Implementation Decisions` 说明中赫然写着一条严厉的禁令：
 > **`Do NOT include specific file paths or code snippets. They may end up being outdated very quickly.`**（严禁在实施决策中硬编码具体文件路径或代码片段，它们会极快地腐烂过时！）
 
 很多人会觉得奇怪：告诉后续 Agent 去改哪个文件的哪一行，难道不是最精确的指引吗？
@@ -306,7 +306,7 @@ Spec 必须聚焦于**模块的职责契约、状态流转与不变量**，而�
 #### 2. 宴席总菜单 vs 厨师工单：`ready-for-agent` 标签污染
 在 `to-spec` 的发布流程中，规格生成后会被自动推送到项目的 Issue 跟踪系统（如 GitHub Issues），并被打上一个系统标签：`ready-for-agent`。
 
-Matt Pocock 在其[官方说明文档](https://github.com/mattpocock/skills/blob/4ae2317/docs/engineering/to-spec.md)中坦白了一个荒唐的现场事故：
+Matt Pocock 在其[官方说明文档](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/docs/engineering/to-spec.md)中坦白了一个荒唐的现场事故：
 团队搭建了一个自动化的调度 Worker，后台不断轮询所有带有 `ready-for-agent` 标签的 Issue，一旦扫到就立刻唤醒一个 Coding Agent 去开工执行。
 
 结果，这个 Worker 扫到了刚由 `to-spec` 生成的这份庞大、宏观的父级 Spec。
@@ -320,7 +320,7 @@ Matt Pocock 在其[官方说明文档](https://github.com/mattpocock/skills/blob
 一个刚进厨房的小学徒一把抓起那张全套总菜单，以为全仗着自己一个人把这二十道大菜在半小时内全炒出来，整个后厨瞬间陷入彻底的瘫痪。
 
 这就是**标签语义的降维污染**。
-`to-spec` 沉淀出的是宏观的顶层蓝图（宴席总菜单）。没有任务切片的承接，再完美的 Spec 也只是一份让单兵 Agent 上下文爆仓的沉重总单，反而会把执行者直接拖入长程发散的泥潭。它必须紧接着调用下游的 [`to-tickets`](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/to-tickets/SKILL.md) 技能，将这份庞大的结晶体，进一步依照纵向切片切碎为一张张带有明确依赖关系、可以在单个独立上下文内稳妥收敛的原子工单（厨师小工单）。
+`to-spec` 沉淀出的是宏观的顶层蓝图（宴席总菜单）。没有任务切片的承接，再完美的 Spec 也只是一份让单兵 Agent 上下文爆仓的沉重总单，反而会把执行者直接拖入长程发散的泥潭。它必须紧接着调用下游的 [`to-tickets`](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/to-tickets/SKILL.md) 技能，将这份庞大的结晶体，进一步依照纵向切片切碎为一张张带有明确依赖关系、可以在单个独立上下文内稳妥收敛的原子工单（厨师小工单）。
 
 ---
 
@@ -346,7 +346,7 @@ Matt Pocock 在其[官方说明文档](https://github.com/mattpocock/skills/blob
 - [第二篇：控制权的收放艺术](/zhangmuchuan/blog/agent-control/)：Context 过程残骸与信息价值。
 - [第三篇：驯服长程循环](/zhangmuchuan/blog/agent-harness/)：信噪比、事实过期、恒温器与验证。
 - [第六篇：穿越时间的 Context](/zhangmuchuan/blog/agent-memory/)：整理层、原始依据及跨阶段信息交接。
-- [to-spec 技能规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/to-spec/SKILL.md)与[to-spec 说明文档](https://github.com/mattpocock/skills/blob/4ae2317/docs/engineering/to-spec.md)：规格整理、测试接缝、标签问题与规格生命周期。
-- [to-tickets 技能规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/to-tickets/SKILL.md)、[TDD 技能规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/SKILL.md)与[codebase-design 规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/codebase-design/SKILL.md)：任务来源、验收标准、测试与模块接缝。
+- [to-spec 技能规范](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/to-spec/SKILL.md)与[to-spec 说明文档](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/docs/engineering/to-spec.md)：规格整理、测试接缝、标签问题与规格生命周期。
+- [to-tickets 技能规范](https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/to-tickets/SKILL.md)、[TDD 技能规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/tdd/SKILL.md)与[codebase-design 规范](https://github.com/mattpocock/skills/blob/4ae2317/skills/engineering/codebase-design/SKILL.md)：任务来源、验收标准、测试与模块接缝。
 - [AI Skills with Matt Pocock 访谈记录](https://www.youtube.com/watch?v=4DhcSPkEbwI)：日班夜班、规格驱动开发的个人经验及反馈。
 - [Sandcastle：从八个接缝减少到四个](https://github.com/mattpocock/sandcastle/issues/757)：具体工程中的接缝取舍。
