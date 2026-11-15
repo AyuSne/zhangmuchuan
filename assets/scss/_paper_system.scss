@@ -1,0 +1,68 @@
+// Paper 的系统界面沿用 OINK 交互，只替换纸面、墨色与朱色的视觉语言。
+[data-td-preset='paper'] {
+  .td-shell-footline {
+    border-color: var(--td-rule);
+    background: var(--bs-body-bg);
+    padding-block: 1rem;
+
+    a {
+      font-family: var(--td-meta-font-family, monospace);
+      &:hover { color: var(--td-vermilion-text); }
+    }
+  }
+
+  // 字标是装饰，版权和作者仍由主题的本地化模板提供。
+  .td-shell-footline__copy::before {
+    content: '川';
+    display: inline-grid;
+    place-items: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    margin-inline-end: 0.6rem;
+    border-radius: 2px;
+    background: var(--td-vermilion);
+    color: #fff;
+    font-family: var(--td-serif);
+    font-size: 1rem;
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  // 搜索和命令面板共用同一组件。抽屉继承同一组颜色及焦点色。
+  .td-shell-search,
+  .td-shell-sidebar__panel {
+    --td-shell-primary: var(--td-vermilion-text);
+    --td-shell-primary-hover: var(--td-vermilion-text);
+    --td-shell-primary-wash: rgba(var(--td-accent-rgb), 0.1);
+    --td-shell-popover: var(--td-surface);
+    --td-shell-field: var(--td-surface);
+  }
+
+  .td-shell-search__panel {
+    border-color: var(--td-rule-strong);
+    border-radius: var(--td-radius);
+    box-shadow: 0 10px 30px -12px rgba(31, 29, 24, 0.3);
+  }
+
+  .td-shell-search__head,
+  .td-shell-search__scope,
+  .td-shell-search__footer {
+    border-color: var(--td-rule);
+  }
+
+  .td-shell-search__item[aria-selected='true'] {
+    background: var(--td-shell-primary-wash);
+  }
+
+  .td-shell-search__head:focus-within {
+    box-shadow: inset 0 -2px var(--td-vermilion-text);
+  }
+
+  .td-shell-search__esc:focus-visible,
+  .td-shell-sidebar__panel :focus-visible,
+  .td-shell-footline :focus-visible,
+  .td-shell-search__scope-option input:focus-visible + span {
+    outline: 2px solid var(--td-vermilion-text);
+    outline-offset: 2px;
+  }
+}
