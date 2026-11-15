@@ -26,6 +26,7 @@
 | 2026-11-13 | OINK 升级到 v1.5.1（构建基线 Hugo 0.169.0 不变）；隔离构建核对：107 页、产物文件集合与 1.4.0 一致，差异仅无障碍文案、归档分页语义、404 外壳与 RSS 日期 |
 | 2026-11-15 | 品牌换成朱印「川」，新增品牌回归测试；交付「纸 · 墨 · 朱」token 层与 Paper 首页（hero → 01 最近写作 → 02 系列 → 03 译文 → CTA），新增首页回归测试 |
 | 2026-11-15 | 交付 Paper 文章页：三栏（文章目录 / 954 正文 / 220 页内目录）、头部顺序与含「下一篇」的系列条、当前文章朱红高亮、阅读进度、图片放大、回到顶部与锚点偏移；新增文章页回归测试，390/768/1440/1920 明暗截图核对 |
+| 2026-11-15 | 交付索引、关于、标签、系列与 404 的统一外壳；页脚与系统界面扩展到四预设，新增四预设回归测试，并完成 #17 响应式与降级验收 |
 
 ## 3. 技术选型
 
@@ -44,7 +45,7 @@
 
 ```text
 .
-├── hugo.yaml                     # 全站唯一配置：标题、语言、菜单、Paper 风格、搜索、模块
+├── hugo.yaml                     # 全站唯一配置：标题、语言、菜单、四预设外观、搜索、模块
 ├── go.mod / go.sum               # 固定 OINK v1.5.1
 ├── content/
 │   ├── _index.md                 # 首页 front matter
@@ -64,7 +65,10 @@
 ├── layouts/blog/_td-content.html   # 文章页头部顺序：标题 → 摘要 → 日期/时长/标签 → 系列条
 ├── layouts/partials/hooks/body-end.html # 文章页阅读进度、回到顶部与 article.js
 ├── assets/js/article.js            # 文章页小型运行时（rAF 节流、尊重 reduced-motion）
+├── assets/js/shell-drawer.js       # 导航抽屉的小型补丁（焦点与滚动锁）
 ├── assets/scss/_styles_project.scss # 「纸 · 墨 · 朱」token 层、首页与文章页版式
+├── assets/scss/_other_pages.scss   # 关于、标签、系列与 404 的行式列表
+├── assets/scss/_system_surfaces.scss # 页脚、搜索、命令面板与抽屉的四预设外观
 ├── .github/workflows/
 │   └── github-pages.yaml         # 构建并发布到 Pages
 ├── static/brand/seal.svg          # 朱印品牌标识母版（header、侧栏都用它）
@@ -72,10 +76,14 @@
 ├── tests/brand-seal.ps1          # 朱印品牌回归测试（出包后校验品牌位与标签图标）
 ├── tests/home-paper.ps1          # 首页版式与降级回归测试
 ├── tests/article-paper.ps1       # 文章页三栏、头部顺序、目录/进度/放大/回顶回归测试
-├── tests/lib/harness.ps1         # 三个测试共用的构建与断言工具
+├── tests/index-table-paper.ps1   # 博客索引 table 变体与分页元数据
+├── tests/other-pages-paper.ps1   # 系列、关于、标签与 404
+├── tests/presets.ps1             # 四预设调色板、字体、朱印与降级回归测试
+├── tests/lib/harness.ps1         # 六个测试共用的构建与断言工具
 ├── .agents/skills/               # 技能仓库内副本（27 个，版本锁在 skills-lock.json）
 ├── docs/
 │   ├── adr/0001-…md              # 架构决策记录
+│   ├── acceptance/issue-17.md    # 四预设 × 明暗 × 四宽度验收记录
 │   ├── agents/                   # 技能配置（issue tracker、triage、domain docs）
 │   ├── PROJECT.md                # 本文
 │   └── GUIDE.md                  # 使用手册
@@ -121,18 +129,17 @@ git push origin main
   - `智能体第一性原理`（7 篇，`series_weight` 0–6）：数学基石 → Agent Loop → 控制权 → Harness → 业务 → 行业 → 记忆。
   - `Matt Pocock Skills`（8 篇，`series_weight` 1–8）。
 - **标签**：14 个标签页（`/tags/` 下），以 AI、Agent、软件工程为主，译文侧补充了中文主题词。
-- **搜索**：OINK 本地搜索，构建时生成索引，无外部依赖。
+- **外观与搜索**：四套预设共用版式、页脚和系统界面，读者可切换明暗；搜索使用 OINK 本地索引，无外部服务依赖。
 - **评论**：关闭，Giscus 配置在 `hugo.yaml` 中以注释形式保留。
 - **语言**：中文单语；英文已声明但禁用，为以后双语留位。
 
 ## 7. 质量检查
 
 - 本地生产构建：**109 页，0 个路径警告**，仅有 OINK 上游的 LibSass 弃用警告（已接受，见 `AGENTS.md`）。
-- 回归测试：`tests/brand-seal.ps1`、`tests/home-paper.ps1`、`tests/article-paper.ps1` 都以生产构建产物为接缝；文章页测试 88 项，覆盖三栏断点、头部顺序、目录高亮、系列下一篇、进度/放大/回顶、抽屉隔离与公式不撑宽页面。
-- 文章页手工核对：Paper 在 390/768/1440/1920 四宽 × 明暗两套截图，28 篇文章在 390 宽下均无横向溢出；Slate/Ink/Terminal 在 1440 × 明暗抽查了 token 与溢出，完整四预设矩阵按 #17 验收；控制台只有浏览器扩展日志。
-- 线上：首页 HTTP 200，内容与仓库一致；hero、最近写作、系列、最近译文与 CTA 均正常。
-- CI：最近 5 次运行全部 `success`，耗时 41–54 秒。
-- 仓库单一 `main` 分支，与 `origin/main` 同步推进；提交前确认工作区没有遗留改动。
+- 回归测试：`tests/` 下六个脚本以生产构建产物为接缝，覆盖品牌、首页、文章页、索引分页、其余页面与四预设。
+- 四预设 × 明暗 × 390/768/1440/1920 的代表页面截图、响应式与降级检查见 [#17 验收记录](./acceptance/issue-17.md)。截图保存在本地忽略目录，不纳入 Git。
+- 线上与 CI 的历史检查见建站时间线；本次视觉改动仅在本地验证，发布状态以远端为准。
+- 本地在 `main` 分支开发；提交前检查暂存列表并保留无关工作区文件。
 - 建站期 `/code-review` 修掉的三个硬问题（Hugo 基线三处不一致、术语冲突、README 关于页路径错误）已闭环；Hugo 默认 `categories` 已关闭，只用 `tags` 与 `series`。
 
 ## 8. 已知限制与下一步
@@ -143,7 +150,7 @@ git push origin main
 | 评论 | 关闭 | 需要时按 GUIDE 开启 Giscus |
 | 英文 | 已声明、未启用 | 需要时添加 `.en.md` 翻译并启用 |
 | 品牌标识 | 朱印「川」已替换 Starter 图标，header、侧栏与标签页统一 | 无需处理 |
-| 四预设视觉回归 | Paper 文章页已核对四宽 × 明暗；Slate/Ink/Terminal 在 1440 × 明暗抽查通过 | 按 #17 补齐四套 × 明暗 × 四宽截图 |
+| 四预设视觉回归 | 四套预设、明暗与四个宽度已验收；`tests/presets.ps1` 守住调色板、字体、朱印与降级 | OINK 升级后按验收记录复查 |
 | 标签词表 | 博客用 `Agent`、译文用 `AI Agent`，站上并存两个标签页 | 统一成一个词，或明确“原创 / 译文”分层规则 |
 
 ## 9. 关键文件索引

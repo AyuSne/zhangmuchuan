@@ -1,5 +1,5 @@
 // 「纸 · 墨 · 朱」基座 —— 本站唯一的视觉 token 层（issue #10 / #12）。
-@import 'paper_system';
+@import 'system_surfaces';
 //
 // 纸色、墨色、弱化文字、分隔线、朱印；浅色与深色各一套。朱印在四套预设里都是朱红，
 // 不随预设换色；深色下用更亮的朱色保证文字与描边可辨。
@@ -29,6 +29,11 @@
   --td-vermilion-strong-hover: #f0927f;
   // 朱色作文字用时按底色取色，深色纸面换成更亮的 strong。
   --td-vermilion-text: var(--td-vermilion);
+
+  // 首页的 landing 作用域自带 --td-ink / --td-muted；索引、关于、404 和系统界面
+  // 不在那个作用域里，所以在根上按主题语义再映射一次，弱化文字不会退回正文色。
+  --td-ink: var(--bs-body-color);
+  --td-muted: var(--bs-tertiary-color);
 
   // 全站统一的小圆角：按钮、卡片、输入框同一套边界语言。
   --td-radius: 3px;
@@ -916,6 +921,13 @@ a:hover .td-home-arrow {
 // ---------------------------------------------------------------------------
 
 @media (prefers-reduced-motion: reduce) {
+  // 覆盖主题组件中尚未单独处理的过渡（例如滚动时的导航栏阴影）。
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
   .td-home-hero__line-text,
   .td-home-hero__lead,
   .td-home-hero__actions,

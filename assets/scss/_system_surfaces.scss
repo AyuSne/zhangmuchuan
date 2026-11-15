@@ -1,5 +1,5 @@
-// Paper 的系统界面沿用 OINK 交互，只替换纸面、墨色与朱色的视觉语言。
-[data-td-preset='paper'] {
+// 四套预设共用系统界面版式，颜色由当前预设的 token 提供。
+:root {
   .td-shell-footline {
     border-color: var(--td-rule);
     background: var(--bs-body-bg);
@@ -31,8 +31,8 @@
   // 搜索和命令面板共用同一组件。抽屉继承同一组颜色及焦点色。
   .td-shell-search,
   .td-shell-sidebar__panel {
-    --td-shell-primary: var(--td-vermilion-text);
-    --td-shell-primary-hover: var(--td-vermilion-text);
+    --td-shell-primary: var(--td-accent);
+    --td-shell-primary-hover: var(--td-accent);
     --td-shell-primary-wash: rgba(var(--td-accent-rgb), 0.1);
     --td-shell-popover: var(--td-surface);
     --td-shell-field: var(--td-surface);
@@ -41,7 +41,8 @@
   .td-shell-search__panel {
     border-color: var(--td-rule-strong);
     border-radius: var(--td-radius);
-    box-shadow: 0 10px 30px -12px rgba(31, 29, 24, 0.3);
+    // 阴影跟随预设：Paper/Slate 用主题的软阴影，Ink/Terminal 保持无阴影的平面感。
+    box-shadow: var(--td-shell-shadow-lg);
   }
 
   .td-shell-search__head,
@@ -52,17 +53,19 @@
 
   .td-shell-search__item[aria-selected='true'] {
     background: var(--td-shell-primary-wash);
+    // Terminal 的上游反色文字只适用于实心选中背景。
+    color: var(--bs-body-color);
   }
 
   .td-shell-search__head:focus-within {
-    box-shadow: inset 0 -2px var(--td-vermilion-text);
+    box-shadow: inset 0 -2px var(--td-shell-primary);
   }
 
   .td-shell-search__esc:focus-visible,
   .td-shell-sidebar__panel :focus-visible,
   .td-shell-footline :focus-visible,
   .td-shell-search__scope-option input:focus-visible + span {
-    outline: 2px solid var(--td-vermilion-text);
+    outline: 2px solid var(--td-accent);
     outline-offset: 2px;
   }
 }

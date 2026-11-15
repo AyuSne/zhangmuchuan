@@ -223,6 +223,12 @@ git push
 | 搜索开关 | `params.offline_search`（默认开） |
 | 评论 | 见第 8 节 |
 
+读者可用导航栏或页脚的「外观」切换 Paper、Slate、Ink、Terminal 和亮色、暗色、跟随系统；选择会保存在当前浏览器。四套预设共用版式，Terminal 使用等宽标题，其余使用宋体标题。系统设置了「减少动态效果」时，入场和滚动动效会关闭。禁用 JavaScript 时正文、导航链接和首页统计仍可阅读，但搜索、外观切换等交互不可用。
+
+四套预设只切换 token：纸色、墨色、朱色与圆角在 `assets/scss/_styles_project.scss` 顶部的 token 层，页脚、搜索、命令面板和移动抽屉的样式在 `assets/scss/_system_surfaces.scss`。改一处即可全站生效；朱印色与 `static/brand/seal.svg` 保持一致。
+
+文章页在 1440px 及以上显示文章目录和页内目录；1000–1439px 保留文章目录；窄于 1000px 时文章目录收进导航抽屉。主题升级后应检查四套预设的明暗、移动宽度、搜索和抽屉；本次验收记录见 [`docs/acceptance/issue-17.md`](./acceptance/issue-17.md)。
+
 改完推送即可，和发文章一样 `git add -A` → `commit` → `push`。
 
 ---
