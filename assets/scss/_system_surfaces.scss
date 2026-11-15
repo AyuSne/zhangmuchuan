@@ -7,7 +7,7 @@
 
     a {
       font-family: var(--td-meta-font-family, monospace);
-      &:hover { color: var(--td-vermilion-text); }
+      &:hover { color: var(--td-accent); }
     }
   }
 
@@ -32,7 +32,7 @@
   .td-shell-search,
   .td-shell-sidebar__panel {
     --td-shell-primary: var(--td-accent);
-    --td-shell-primary-hover: var(--td-accent);
+    --td-shell-primary-hover: var(--td-accent-hover);
     --td-shell-primary-wash: rgba(var(--td-accent-rgb), 0.1);
     --td-shell-popover: var(--td-surface);
     --td-shell-field: var(--td-surface);

@@ -13,9 +13,10 @@
       4. 页脚、搜索、抽屉的系统界面样式在根作用域生效，不再只在 Paper 下生效。
       5. --td-ink / --td-muted 在根上映射，索引、关于、404 的弱化文字不会退回正文色。
       6. reduced-motion 下主题组件的动画与过渡也被统一关闭。
-      7. 自有动效 JS 的 gzip 体积低于 10KB；有 node 时顺带做语法检查。
+      7. 自有小型 JS（动效与抽屉）的 gzip 体积低于 10KB；有 node 时顺带做语法检查。
 
-    四个宽度与明暗两种模式的实际观感要人工在浏览器里截图核对。
+    四个宽度与明暗两种模式的实际观感要人工在浏览器里截图核对；计算样式的最终验收记录见
+    `docs/acceptance/issue-17.md`。
 
 .NOTES
     运行：powershell -NoProfile -ExecutionPolicy Bypass -File tests\presets.ps1
@@ -35,27 +36,6 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $OutDir = Join-Path $RepoRoot $Destination
 $ExpectedPages = 109
-
-function Get-GzipLength {
-    param([string]$Path)
-
-    $bytes = [System.IO.File]::ReadAllBytes($Path)
-    $memory = New-Object System.IO.MemoryStream
-    $gzip = New-Object System.IO.Compression.GZipStream -ArgumentList @(
-        $memory,
-        [System.IO.Compression.CompressionMode]::Compress,
-        $true
-    )
-    try {
-        $gzip.Write($bytes, 0, $bytes.Length)
-    }
-    finally {
-        $gzip.Dispose()
-    }
-    $length = $memory.Length
-    $memory.Dispose()
-    return $length
-}
 
 # ---------------------------------------------------------------- 构建
 
@@ -162,6 +142,17 @@ foreach ($token in @(
     Test-CssRule $css ':root' ($token.Name + ':\s*' + $token.Expected) "$($token.Name) 在根上映射"
 }
 
+# 根声明之外若有人用固定色覆写，索引/关于/404 仍会退回正文色；这里把定义收紧。
+foreach ($token in @(
+        @{ Name = '--td-ink'; Expected = 'var(--bs-body-color)' },
+        @{ Name = '--td-muted'; Expected = 'var(--bs-tertiary-color)' }
+    )) {
+    $otherDefs = @([regex]::Matches($css, [regex]::Escape($token.Name) + ':([^;}]+)') |
+        ForEach-Object { $_.Groups[1].Value.Trim() } |
+        Where-Object { $_ -ne $token.Expected })
+    Test-Check ($otherDefs.Count -eq 0) "所有 $($token.Name) 定义都指向主题语义色" $otherDefs
+}
+
 # ---------------------------------------------------------------- 降级与 JS
 
 Write-Section "降级：reduced-motion 统一关闭动画"
@@ -178,26 +169,26 @@ Test-Check ($instantScroll.Count -ge 1) "reduced-motion 下恢复瞬时滚动" @
 Write-Section "动效 JS：体积与语法"
 
 $jsDir = Join-Path $OutDir "js"
-$motionJs = @(@("article", "shell-drawer") | ForEach-Object {
+$ownJs = @(@("article", "shell-drawer") | ForEach-Object {
         Get-ChildItem -LiteralPath $jsDir -File -Filter "$_.min.*.js" -ErrorAction SilentlyContinue | Select-Object -First 1
     } | Where-Object { $_ })
-Test-Check ($motionJs.Count -eq 2) "两个动效脚本都已出包" @("缺少 article.min.*.js 或 shell-drawer.min.*.js")
+Test-Check ($ownJs.Count -eq 2) "两个自有脚本都已出包" @("缺少 article.min.*.js 或 shell-drawer.min.*.js")
 
-if ($motionJs.Count -eq 2) {
+if ($ownJs.Count -eq 2) {
     $total = 0
-    foreach ($file in $motionJs) { $total += Get-GzipLength $file.FullName }
-    Test-Check ($total -lt 10240) ("动效 JS 合计 {0} 字节 gzip，低于 10KB" -f $total)
+    foreach ($file in $ownJs) { $total += Get-GzipLength $file.FullName }
+    Test-Check ($total -lt 10240) ("自有 JS 合计 {0} 字节 gzip，低于 10KB" -f $total)
 }
 
 $node = Get-Command node -ErrorAction SilentlyContinue
 if ($node) {
-    foreach ($file in $motionJs) {
+    foreach ($file in $ownJs) {
         $syntax = @(& $node.Source --check $file.FullName 2>&1 | ForEach-Object { "$_" })
         Test-Check ($LASTEXITCODE -eq 0) "$($file.Name) 语法检查通过" $syntax
     }
 }
 else {
-    Write-Host "  skip 未找到 node，跳过动效 JS 语法检查" -ForegroundColor DarkGray
+    Write-Host "  skip 未找到 node，跳过自有 JS 语法检查" -ForegroundColor DarkGray
 }
 
 Complete-Tests

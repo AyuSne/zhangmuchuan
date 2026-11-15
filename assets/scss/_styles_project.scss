@@ -928,6 +928,7 @@ a:hover .td-home-arrow {
     scroll-behavior: auto !important;
   }
 
+  // 入场动画依赖初始的 opacity / transform；关掉动画后要把元素还原成静止可见。
   .td-home-hero__line-text,
   .td-home-hero__lead,
   .td-home-hero__actions,
@@ -935,25 +936,8 @@ a:hover .td-home-arrow {
   .td-home-hero__updated,
   .td-home-hero__mark,
   .td-home-hero__seal {
-    animation: none;
     opacity: 1;
     transform: none;
-  }
-
-  .td-home-hero__action,
-  .td-home-section__more,
-  .td-home-recent__featured-link,
-  .td-home-recent__read,
-  .td-home-recent__item,
-  .td-home-recent__item-link,
-  .td-home-recent__item-date,
-  .td-home-series__card,
-  .td-home-translations__link,
-  .td-home-translations__row,
-  .td-home-translations__date,
-  .td-home-cta__link,
-  .td-home-arrow {
-    transition: none;
   }
 
   .td-home-hero__action:hover,

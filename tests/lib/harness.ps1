@@ -189,6 +189,28 @@ function Get-Sha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
 }
 
+# 用 GZip 压缩后的字节数估算脚本的传输体积，不引入额外工具。
+function Get-GzipLength {
+    param([string]$Path)
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $memory = New-Object System.IO.MemoryStream
+    $gzip = New-Object System.IO.Compression.GZipStream -ArgumentList @(
+        $memory,
+        [System.IO.Compression.CompressionMode]::Compress,
+        $true
+    )
+    try {
+        $gzip.Write($bytes, 0, $bytes.Length)
+    }
+    finally {
+        $gzip.Dispose()
+    }
+    $length = $memory.Length
+    $memory.Dispose()
+    return $length
+}
+
 function ConvertTo-HexColor {
     param([string]$Value)
 
