@@ -1,0 +1,21 @@
+{{- $post := .page -}}
+<li class="td-index-row{{ if eq $post.Section "translations" }} td-index-row--translation{{ end }}" data-td-reveal style="--td-stagger: {{ mod .index 6 }}">
+  <time class="td-index-row__date" datetime="{{ $post.Date.Format "2006-01-02" }}">{{ $post.Date.Format (cond .fullDate "2006.01.02" "01.02") }}</time>
+  <div class="td-index-row__body">
+    {{- if .fullDate }}<h2 class="td-index-row__title"><a href="{{ $post.RelPermalink }}">{{ $post.Title }}</a></h2>
+    {{- else }}<h3 class="td-index-row__title"><a href="{{ $post.RelPermalink }}">{{ $post.Title }}</a></h3>{{ end }}
+    {{- $summary := $post.Description | default ($post.Summary | plainify | truncate 160) }}
+    {{ with $summary }}<p class="td-index-row__summary">{{ . }}</p>{{ end }}
+    <div class="td-index-row__meta">
+      <span>{{ $post.ReadingTime }} 分钟阅读</span>
+      {{- with $post.GetTerms "tags" }}<span class="td-index-row__tags" aria-label="标签">{{ range . }}<a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>{{ end }}</span>{{ end }}
+    </div>
+  </div>
+  {{- if eq $post.Section "translations" }}
+  {{- $origin := partial "custom/home/origin.html" $post }}
+  <div class="td-index-row__origin">
+    {{ with $origin.author }}<span>原作者 {{ . }}</span>{{ end }}
+    {{ with $origin.url }}<a href="{{ . }}" target="_blank" rel="noopener noreferrer">原文 ↗</a>{{ end }}
+  </div>
+  {{- end }}
+</li>

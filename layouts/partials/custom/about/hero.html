@@ -1,0 +1,16 @@
+{{- $page := .page -}}
+{{- $hero := .data -}}
+<section id="{{ .id }}" class="td-landing-hero td-about-hero" aria-labelledby="{{ .id }}-title">
+  <div class="td-site-container td-about-hero__inner">
+    <div>
+      {{ with $hero.eyebrow }}<p class="td-index-header__eyebrow">{{ . }}</p>{{ end }}
+      <h1 id="{{ $.id }}-title" class="td-about-hero__title">
+        {{- range $hero.title_lines }}
+          {{- if reflect.IsMap . }}{{ range .words }}{{ .text }}{{ end }}{{ else }}{{ . }}{{ end -}}
+        {{- end }}
+      </h1>
+      {{ with $hero.lead }}<p class="td-about-hero__lead">{{ partial "landing/markdown.html" (dict "page" $page "scope" "about-hero-lead" "value" .) }}</p>{{ end }}
+    </div>
+    <img class="td-about-hero__seal" src="{{ "brand/seal.svg" | relURL }}" alt="" width="112" height="112">
+  </div>
+</section>

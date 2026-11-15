@@ -1,0 +1,13 @@
+{{- /* 行式索引始终分页；上游 table 模式没有分页器，需要补建。 */ -}}
+{{- $index := partial "shell/blog-index-state.html" . -}}
+{{- $pager := $index.pager -}}
+{{- $customPager := not $pager -}}
+{{- if not $pager -}}
+  {{- $size := partial "validate.html" (dict
+    "value" (partial "ui-param.html" (dict "page" . "key" "blog_index_size"))
+    "kind" "int" "min" 1 "fallback" 12 "key" "params.ui.blog_index_size"
+    "where" (cond (isset .Params "blog_index_size") .Path "")) -}}
+  {{- $pager = .Paginate ($index.pages.ByDate.Reverse) $size -}}
+  {{- .Store.Set "tdBlogPaginated" true -}}
+{{- end -}}
+{{- return (dict "pages" $index.pages "pager" $pager "customPager" $customPager) -}}

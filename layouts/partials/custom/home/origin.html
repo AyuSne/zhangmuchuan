@@ -11,4 +11,8 @@
   {{- $date = replaceRE `^.*?原文发表[:：]\s*` "" (index . 0) -}}
   {{- $date = strings.TrimSpace $date -}}
 {{- end -}}
-{{- return (dict "author" $author "date" $date) -}}
+{{- $url := "" -}}
+{{- with (findRESubmatch `原文[:：]\s*\[[^\]]+\]\((https?://[^\s)]+)\)` $head 1) -}}
+  {{- $url = index (index . 0) 1 -}}
+{{- end -}}
+{{- return (dict "author" $author "date" $date "url" $url) -}}

@@ -1,0 +1,30 @@
+{{ define "main" -}}
+{{- .Store.Set "hasLanding" true -}}
+<header class="td-index-header">
+  {{- $label := partial "taxonomy-label.html" (dict "page" . "key" .Data.Plural) }}
+  {{ with .Site.GetPage (printf "/%s" .Data.Plural) }}<p class="td-index-header__eyebrow"><a href="{{ .RelPermalink }}">{{ $label }}</a></p>{{ end }}
+  <h1>{{ .Title }}</h1>
+  {{ with partial "content/render.html" . }}<div class="td-shell-term-summary">{{ . }}</div>{{ else }}{{ if eq .Data.Plural "tags" }}<p>这里收录标有「{{ .Title }}」的文章与译文。</p>{{ end }}{{ end }}
+  {{- if eq .Data.Plural "series" }}
+    {{- $name := .Title }}
+    {{- range hugo.Data.home.zh.series.items }}
+      {{- if eq .name $name }}<p>{{ .blurb }}</p>{{ end }}
+    {{- end }}
+  {{- end }}
+</header>
+<div class="td-index-archive td-index-archive--term">
+  {{- if eq .Data.Plural "series" }}
+  <ol class="td-index-year__list">
+    {{- range $i, $post := partial "series-pages.html" . }}
+      {{- partial "custom/index-row.html" (dict "page" $post "index" $i "fullDate" true) -}}
+    {{- end }}
+  </ol>
+  {{- else }}
+  <ul class="td-index-year__list">
+    {{- range $i, $post := .Pages.ByDate.Reverse }}
+      {{- partial "custom/index-row.html" (dict "page" $post "index" $i "fullDate" true) -}}
+    {{- end }}
+  </ul>
+  {{- end }}
+</div>
+{{ end -}}

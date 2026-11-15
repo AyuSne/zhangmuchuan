@@ -1,4 +1,7 @@
-sections: [hero, markdown]
+sections:
+  - type: hero
+    partial: custom/about/hero.html
+  - markdown
 
 hero:
   align: center

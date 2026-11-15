@@ -1,0 +1,38 @@
+{{ define "main" -}}
+{{- /* 复用主题的排序和分页设置；静态内容先可见，再由 OINK 渐显运行时增强。 */ -}}
+{{- .Store.Set "hasLanding" true -}}
+{{- $index := partial "custom/index-state.html" . -}}
+{{- $pager := $index.pager -}}
+<header class="td-index-header">
+  <p class="td-index-header__eyebrow">{{ if eq .Section "translations" }}TRANSLATIONS{{ else }}WRITING{{ end }}</p>
+  <h1>{{ .Title }}</h1>
+  {{ with .Description }}<p>{{ . }}</p>{{ end }}
+</header>
+{{- if $index.pages }}
+<div class="td-index-archive">
+  {{- range $group := $pager.Pages.GroupByDate "2006" }}
+  <section class="td-index-year" aria-labelledby="year-{{ $group.Key }}">
+    <h2 id="year-{{ $group.Key }}" class="td-index-year__label">{{ $group.Key }}</h2>
+    <ol class="td-index-year__list">
+      {{- range $i, $post := $group.Pages }}
+      {{- partial "custom/index-row.html" (dict "page" $post "index" $i "fullDate" false) }}
+      {{- end }}
+    </ol>
+  </section>
+  {{- end }}
+  <div class="td-index-pagination">{{ partial "pagination.html" . }}</div>
+</div>
+{{- else }}
+<p class="td-index-empty">{{ if eq .Section "translations" }}译文整理中，敬请期待。{{ else }}文章整理中，敬请期待。{{ end }}</p>
+{{- end }}
+{{- end }}
+
+{{ define "head" -}}
+{{- /* Head 和正文共用同一个分页器，以保持 canonical 与分页链接一致。 */ -}}
+{{- $index := partial "custom/index-state.html" . -}}
+{{- partial "head.html" . -}}
+{{- if $index.customPager -}}
+  {{- with $index.pager.Prev }}<link rel="prev" href="{{ .URL }}">{{ end -}}
+  {{- with $index.pager.Next }}<link rel="next" href="{{ .URL }}">{{ end -}}
+{{- end -}}
+{{- end }}

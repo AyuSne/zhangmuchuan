@@ -1,0 +1,7 @@
+{{- /* 索引页全宽，文章页和其他外壳页面仍遵循 OINK 配置。 */ -}}
+{{- $index := or (and (eq .Kind "section") (in (slice "/blog" "/translations") .Path)) (and (in (slice "taxonomy" "term") .Kind) (in (slice "tags" "series") .Data.Plural)) -}}
+{{- $enabled := partial "ui-param.html" (dict "page" . "key" "sidebar_enabled") -}}
+{{- $enabled = partial "validate.html" (dict
+    "value" $enabled "kind" "bool" "fallback" true
+    "key" "params.ui.sidebar_enabled" "where" (cond (isset .Params "sidebar_enabled") .Path "")) -}}
+{{- return (and (not $index) $enabled) -}}

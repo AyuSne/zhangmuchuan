@@ -1,0 +1,14 @@
+{{ define "main" -}}
+{{- .Store.Set "hasLanding" true -}}
+<header class="td-index-header">
+  <p class="td-index-header__eyebrow">{{ if eq .Data.Plural "tags" }}TAGS{{ else }}SERIES{{ end }}</p>
+  <h1>{{ partial "taxonomy-label.html" (dict "page" . "key" .Data.Plural) }}</h1>
+</header>
+<ul class="td-terms-list">
+  {{- range $i, $term := .Pages.ByTitle }}
+  <li class="td-terms-list__item" data-td-reveal style="--td-stagger: {{ mod $i 6 }}">
+    <a href="{{ $term.RelPermalink }}"><span>{{ $term.LinkTitle }}</span><span>{{ len $term.Pages }} 篇 <span aria-hidden="true">→</span></span></a>
+  </li>
+  {{- end }}
+</ul>
+{{ end -}}
