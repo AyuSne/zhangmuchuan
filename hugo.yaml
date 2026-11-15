@@ -68,6 +68,10 @@ params:
     dark_mode: true
     section_index: cards
     blog_index: cards
+    # 文章页头部从面包屑开始（issue #13）；索引页的主题默认仍会省掉单层面包屑。
+    breadcrumb: true
+    # 正文插图点开即放大（OINK 原生会话），66 张流程图不再只能眯眼看。
+    image_zoom: true
     sidebar_menu_foldable: true
     sidebar_icon_policy: groups
     backlinks: true

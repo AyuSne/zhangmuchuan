@@ -1,0 +1,20 @@
+{{- /* 文章页头部顺序（issue #13）：面包屑在 baseof 的 topline 里，正文内依次是
+       标题 → 摘要 → 日期/时长/标签 → 系列条 → 正文。系列条留在文首、不吸顶；
+       作者信息已在 article-info 一行里，不再重复 byline 大块。 */ -}}
+{{- $featured := partial "featured-image-mode.html" . -}}
+<div class="td-content">
+		{{ if eq $featured "banner" }}{{ partial "featured-image-article.html" (dict "page" . "mode" $featured) }}
+		{{ end }}{{ if eq $featured "wash" }}<div class="td-article-header td-article-header--wash">{{ partial "featured-image-article.html" (dict "page" . "mode" $featured) }}
+		{{ end }}{{ partial "page-title.html" . }}
+	{{ with .Description }}<div class="lead">{{ . | markdownify }}</div>{{ end }}
+	{{- partial "article-info.html" (dict "page" .) }}
+	<header class="td-article-meta">
+		{{ partial "taxonomy-terms-article-wrapper.html" . -}}
+	</header>
+	{{ if eq $featured "wash" }}</div>
+	{{ end -}}
+	{{ partial "series-strip.html" . -}}
+	{{ .Render "_td-content-after-header" -}}
+	{{ partial "content/render.html" . }}
+	{{ partial "page-end.html" . -}}
+</div>

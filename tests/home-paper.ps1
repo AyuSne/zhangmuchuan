@@ -262,13 +262,7 @@ Test-Check ($rowDelays.Count -ge 1 -and $staggeredRows -ge 8) "列表行按序�
     "CSS 命中 $($rowDelays.Count) 条；HTML 里带序号的元素 $staggeredRows 个")
 
 # hover 微交互：下划线画出、箭头右移、列表行右移、日期变朱色、卡片与按钮轻抬。
-function Test-CssRule {
-    param([string]$Css, [string]$Selector, [string]$Expected, [string]$Name)
 
-    $match = [regex]::Match($Css, [regex]::Escape($Selector) + '\{(?<body>[^}]*)\}')
-    $body = if ($match.Success) { $match.Groups['body'].Value } else { "" }
-    Test-Check ($match.Success -and $body -match $Expected) "$Name" @("规则 $Selector 里没有 $Expected")
-}
 
 Test-CssRule $css '.td-home-recent__item-link:hover' 'translateX\(3px\)' "hover 列表行右移 3px"
 Test-CssRule $css '.td-home-recent__featured-link:hover' 'background-size:\s*100% 1px' "hover 主推标题画下划线"

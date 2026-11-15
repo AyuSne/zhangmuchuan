@@ -22,7 +22,10 @@
 
   // 朱印正色与深色可辨色；浅色纸面上对比度 4.59:1，深色纸面上用 strong。
   --td-vermilion: #c8402f;
+  --td-vermilion-rgb: 200, 64, 47;
   --td-vermilion-strong: #e0705c;
+  --td-vermilion-strong-rgb: 224, 112, 92;
+  --td-vermilion-strong-hover: #f0927f;
   // 朱色作文字用时按底色取色，深色纸面换成更亮的 strong。
   --td-vermilion-text: var(--td-vermilion);
 
@@ -49,6 +52,14 @@
   --td-heading-font-family: var(--td-serif);
   --td-display-font-family: var(--td-serif);
   --td-brand-font-family: var(--td-serif);
+
+  // 圆角统一到 3px：代码块、系列条与提示卡和首页卡片用同一套边界语言。
+  --td-code-radius: var(--td-radius);
+
+  // 外壳激活项（当前文章、页内目录游标、系列名）用朱红，而不是主题的蓝色链接。
+  --td-preset-accent: var(--td-vermilion);
+  --td-preset-accent-rgb: var(--td-vermilion-rgb);
+  --td-preset-accent-hover: var(--td-vermilion-strong);
 }
 
 // ADR-0002：Paper/Slate/Ink 用宋体标题，Terminal 保留等宽（主题自己已设成 code 栈）。
@@ -64,6 +75,11 @@
   --td-rule: rgba(236, 233, 227, 0.16);
   --td-rule-strong: rgba(236, 233, 227, 0.28);
   --td-surface: #1c1b18;
+
+  // 深色纸面上朱印要提亮才能辨认。
+  --td-preset-accent: var(--td-vermilion-strong);
+  --td-preset-accent-rgb: var(--td-vermilion-strong-rgb);
+  --td-preset-accent-hover: var(--td-vermilion-strong-hover);
 }
 
 // ---------------------------------------------------------------------------
@@ -762,4 +778,282 @@ a:hover .td-home-arrow {
   a:hover .td-home-arrow {
     transform: none;
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// 文章页外壳（issue #13）：三栏、正文基准与断点
+// ---------------------------------------------------------------------------
+
+// 正文列在宽屏上的最大内容宽度是 954；外壳 max-width 含两侧 3rem 留白（954 + 96 = 1050）。
+body.td-page.td-blog .td-shell-article {
+  --td-article-measure: 954px;
+  max-width: calc(var(--td-article-measure) + 6rem);
+}
+
+// ≥1440 三栏时，右侧页内目录按 ADR 收到 220px，把宽度让给正文。
+@media (min-width: 1440px) {
+  .td-shell-layout {
+    --td-shell-toc-w: 220px;
+  }
+}
+
+// 1000–1439：页内目录收起，优先正文；左侧文章目录保留。
+@media (max-width: 1439.98px) {
+  .td-shell-toc,
+  .td-shell-toc__panel,
+  .td-shell-toc-float,
+  .td-shell-sidebar__aside {
+    display: none !important;
+  }
+}
+
+// <1000：左侧文章目录变成右侧抽屉，正文单栏。
+@media (max-width: 999.98px) {
+  // 导航栏里的抽屉开关在 768–999 也要出现（主题只在 md 以下显示）。
+  .td-site-header .td-site-nav__menu-toggle.td-nav-util {
+    display: inline-flex;
+  }
+
+  // aside 让出布局，面板自己变成抽屉。
+  .td-shell-sidebar {
+    display: contents;
+  }
+
+  .td-shell-sidebar__panel {
+    position: fixed;
+    inset-block: 0;
+    inset-inline: auto 0;
+    width: 85vw;
+    max-width: 380px;
+    z-index: 1045;
+    border-inline-end: 0;
+    border-inline-start: 1px solid var(--td-rule);
+    font-size: 0.9375rem;
+    opacity: 1;
+    transform: translateX(100%);
+    // 关着的抽屉不能留在 Tab 顺序与无障碍树里；滑出后再隐藏，保留过渡。
+    visibility: hidden;
+    transition:
+      transform var(--td-motion-duration-slow) ease,
+      visibility 0s linear var(--td-motion-duration-slow);
+  }
+
+  [data-td-shell-drawer='open'] .td-shell-sidebar__panel {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform var(--td-motion-duration-slow) ease, visibility 0s;
+  }
+
+  // 主题的桌面收起态在 768–999 不再适用；抽屉关闭时仍停在屏幕外。
+  [data-td-shell-sidebar='collapsed'] .td-shell-sidebar__panel {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+
+  [data-td-shell-sidebar='collapsed'][data-td-shell-drawer='open'] .td-shell-sidebar__panel {
+    transform: translateX(0);
+  }
+
+  .td-shell-float {
+    display: none !important;
+  }
+
+  // 遮罩带 d-md-none；抽屉化之后到 1000 之前都要能点。
+  .td-shell-drawer-backdrop {
+    display: block !important;
+  }
+
+  .td-shell-sidebar__brand-row {
+    display: none;
+  }
+
+  .td-shell-sidebar__header-row--drawer-only {
+    display: flex;
+  }
+
+  .td-shell-iconbtn.td-shell-sidebar__close {
+    display: inline-flex;
+  }
+
+  .td-shell-sidebar__resizer {
+    display: none;
+  }
+}
+
+
+// 当前文章：朱红浅底（主题的 --td-shell-primary-dim 由 --td-accent 兑出）+ 2px 左边条。
+// 边条占掉 2px，内缩同等像素，目录文字仍与相邻行对齐。
+.td-shell-tree__row.td-shell-active {
+  border-inline-start: 2px solid var(--td-accent);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  padding-inline-start: calc(var(--td-shell-indent, 8px) - 2px);
+}
+
+// 页内目录：把主题的 1px 游标加粗成 2px 朱红滑动条，圆点随之放大。
+.td-shell-toc__active path {
+  stroke-width: 2px;
+}
+
+.td-shell-toc__dot {
+  width: 6px;
+  height: 6px;
+}
+
+
+// ---------------------------------------------------------------------------
+// 文章页锚点：header 偏移与平滑滚动
+// ---------------------------------------------------------------------------
+
+// 桌面 header 高 50px；再留 46px，锚点落在 96px 处，不会贴在标题栏下沿。
+@media (min-width: 768px) {
+  :root {
+    --td-anchor-offset-delta: 46px;
+  }
+
+  html:has(body.td-shell-chrome--navbar) {
+    scroll-padding-top: calc(var(--td-shell-nav-h) + var(--td-anchor-offset-delta));
+  }
+}
+
+// 平滑滚动只作为渐进增强，且只作用于文章页；减少动态效果时保持系统默认的瞬时跳转。
+@media (prefers-reduced-motion: no-preference) {
+  html:has(body.td-page.td-blog) {
+    scroll-behavior: smooth;
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// 阅读进度与回到顶部（issue #13）
+// ---------------------------------------------------------------------------
+
+// 2px 朱红进度条，贴在 header 下沿；无 JS 时保持 hidden。
+.td-read-progress {
+  position: fixed;
+  inset-block-start: var(--td-shell-nav-h);
+  inset-inline: 0;
+  z-index: 101;
+  height: 2px;
+  background: color-mix(in srgb, var(--td-vermilion) 14%, transparent);
+  pointer-events: none;
+}
+
+.td-read-progress__fill {
+  display: block;
+  height: 100%;
+  background: var(--td-vermilion);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+// 1.2 屏后淡入的回到顶部；默认不可见也不可聚焦。
+.td-back-top {
+  position: fixed;
+  inset-block-end: 24px;
+  inset-inline-end: 24px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--td-rule);
+  border-radius: var(--td-radius);
+  background: var(--td-surface);
+  color: var(--bs-secondary-color);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.td-back-top[data-td-visible] {
+  visibility: visible;
+  opacity: 1;
+}
+
+.td-back-top:hover {
+  border-color: var(--td-vermilion);
+  color: var(--td-vermilion-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .td-back-top {
+    transition: none;
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// 正文组件边界（issue #13）：公式在窄屏自己横向滚动，不撑宽整页
+// ---------------------------------------------------------------------------
+
+// KaTeX 会把一个行内公式拆成多个 nowrap 的 katex-base；窄屏上其中一个比正文列
+// 宽时，页面会横向溢出。让公式自己成为一个可横向滚动的行内盒子，公式仍与正文
+// 基线对齐；短公式不会出现滚动条。
+.td-content .katex {
+  display: inline-flex;
+  align-items: baseline;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.1em;
+  scrollbar-width: thin;
+}
+
+.td-content .katex::-webkit-scrollbar {
+  height: 4px;
+}
+
+.td-content .katex::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--td-rule-strong);
+}
+
+// 独立公式沿用 OINK 的 .katex-display 滚动容器，不要套上上面的行内盒模型。
+.td-content .katex-display .katex {
+  display: block;
+  max-width: none;
+  overflow: visible;
+  padding-block: 0;
+  scrollbar-width: auto;
+}
+
+
+// 引用条原本是主题的蓝色 6px；文章页统一成 2px 暖色分隔线，融入纸墨底。
+.td-content blockquote {
+  border-inline-start: 2px solid var(--td-rule-strong);
+}
+
+
+// 系列条右侧的“下一篇”：给 summary 的幽灵名留出更多尾部空间，链接自己叠在
+// 折叠箭头左侧；它是 summary 的兄弟节点，不构成嵌套交互控件。
+.td-series-strip {
+  --td-series-tail: 12rem;
+}
+
+.td-series-strip__next {
+  position: absolute;
+  z-index: 2;
+  inset-block-start: var(--td-series-pad);
+  inset-inline-end: calc(var(--td-series-gutter) + 2.125rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-block-size: var(--td-series-ordinal);
+  color: var(--td-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.td-series-strip__next:hover {
+  color: var(--td-accent-hover);
+  text-decoration: none;
+}
+
+.td-series-strip__next i {
+  font-size: 0.65rem;
 }

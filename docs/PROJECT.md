@@ -25,6 +25,7 @@
 | 2026-11-13 | 首页增加翻译栏目入口，更新 Skills 系列与 Agent 记忆文章 |
 | 2026-11-13 | OINK 升级到 v1.5.1（构建基线 Hugo 0.169.0 不变）；隔离构建核对：107 页、产物文件集合与 1.4.0 一致，差异仅无障碍文案、归档分页语义、404 外壳与 RSS 日期 |
 | 2026-11-15 | 品牌换成朱印「川」，新增品牌回归测试；交付「纸 · 墨 · 朱」token 层与 Paper 首页（hero → 01 最近写作 → 02 系列 → 03 译文 → CTA），新增首页回归测试 |
+| 2026-11-15 | 交付 Paper 文章页：三栏（文章目录 / 954 正文 / 220 页内目录）、头部顺序与含「下一篇」的系列条、当前文章朱红高亮、阅读进度、图片放大、回到顶部与锚点偏移；新增文章页回归测试，390/768/1440/1920 明暗截图核对 |
 
 ## 3. 技术选型
 
@@ -60,14 +61,18 @@
 │   ├── home/zh.yaml              # 首页内容：hero、01 最近写作、02 系列、03 译文、CTA
 │   └── landing/about/zh.yaml     # 关于页正文
 ├── layouts/partials/custom/home/   # 首页各分区（hero、01 最近写作、02 系列、03 译文、CTA）
-├── assets/scss/_styles_project.scss # 「纸 · 墨 · 朱」token 层与首页版式
+├── layouts/blog/_td-content.html   # 文章页头部顺序：标题 → 摘要 → 日期/时长/标签 → 系列条
+├── layouts/partials/hooks/body-end.html # 文章页阅读进度、回到顶部与 article.js
+├── assets/js/article.js            # 文章页小型运行时（rAF 节流、尊重 reduced-motion）
+├── assets/scss/_styles_project.scss # 「纸 · 墨 · 朱」token 层、首页与文章页版式
 ├── .github/workflows/
 │   └── github-pages.yaml         # 构建并发布到 Pages
 ├── static/brand/seal.svg          # 朱印品牌标识母版（header、侧栏都用它）
 ├── static/favicon.svg            # 浏览器标签图标，同一枚朱印的副本
 ├── tests/brand-seal.ps1          # 朱印品牌回归测试（出包后校验品牌位与标签图标）
-├── tests/home-paper.ps1         # 首页版式与降级回归测试
-├── tests/lib/harness.ps1        # 两个测试共用的构建与断言工具
+├── tests/home-paper.ps1          # 首页版式与降级回归测试
+├── tests/article-paper.ps1       # 文章页三栏、头部顺序、目录/进度/放大/回顶回归测试
+├── tests/lib/harness.ps1         # 三个测试共用的构建与断言工具
 ├── .agents/skills/               # 技能仓库内副本（27 个，版本锁在 skills-lock.json）
 ├── docs/
 │   ├── adr/0001-…md              # 架构决策记录
@@ -76,7 +81,7 @@
 │   └── GUIDE.md                  # 使用手册
 ├── 翻译/                          # 翻译工作目录（原文、中间产物、译稿），已 gitignore
 ├── AGENTS.md                     # 构建基线 + 仓库卫生规则
-├── GLOSSARY.md                   # 站点/首页/博客/文章/翻译/关于 的术语
+├── GLOSSARY.md                   # 站点/首页/博客/文章/系列/翻译/关于与文章页界面术语
 ├── README.md                     # 快速开始
 ├── skills-lock.json              # 技能版本锁
 └── THIRD_PARTY.md                # 第三方组件与许可证
@@ -108,6 +113,7 @@ git push origin main
 ## 6. 内容现状
 
 - **首页**：hero（三动作 + 朱印 + 竖排短句 + 统计 + 最近更新）→ 01 最近写作（一主四辅）→ 02 系列 → 03 最近译文 → CTA；数据都在 `data/home/zh.yaml`，分区模板在 `layouts/partials/custom/home/`。
+- **文章页**：面包屑 → 宋体标题 → 摘要 → 日期/时长/标签 → 系列条；三栏为文章目录、最大 954 的正文列和 220 的页内目录，≥1440 三栏、1000–1439 只留左栏、<1000 左栏收成抽屉。当前文章朱红浅底 + 2px 左边条，页内目录有 2px 朱红游标；系列条在文首并带「下一篇」，阅读进度、图片放大、回到顶部与 96px 锚点偏移都在文章页生效。
 - **博客**：20 篇长文，全部是 page bundle，插图 66 张。
 - **翻译**：8 篇译文，复用博客模板，正文开头注明原作者与原文链接（多数另附原文发表时间）；其中 3 篇与站内原创长文构成“原创分析 + 同文译文”的配对。
 - **关于**：landing 布局，文案在 `data/landing/about/zh.yaml`。
@@ -122,6 +128,8 @@ git push origin main
 ## 7. 质量检查
 
 - 本地生产构建：**109 页，0 个路径警告**，仅有 OINK 上游的 LibSass 弃用警告（已接受，见 `AGENTS.md`）。
+- 回归测试：`tests/brand-seal.ps1`、`tests/home-paper.ps1`、`tests/article-paper.ps1` 都以生产构建产物为接缝；文章页测试 88 项，覆盖三栏断点、头部顺序、目录高亮、系列下一篇、进度/放大/回顶、抽屉隔离与公式不撑宽页面。
+- 文章页手工核对：Paper 在 390/768/1440/1920 四宽 × 明暗两套截图，28 篇文章在 390 宽下均无横向溢出；Slate/Ink/Terminal 在 1440 × 明暗抽查了 token 与溢出，完整四预设矩阵按 #17 验收；控制台只有浏览器扩展日志。
 - 线上：首页 HTTP 200，内容与仓库一致；hero、最近写作、系列、最近译文与 CTA 均正常。
 - CI：最近 5 次运行全部 `success`，耗时 41–54 秒。
 - 仓库单一 `main` 分支，与 `origin/main` 同步推进；提交前确认工作区没有遗留改动。
@@ -135,6 +143,7 @@ git push origin main
 | 评论 | 关闭 | 需要时按 GUIDE 开启 Giscus |
 | 英文 | 已声明、未启用 | 需要时添加 `.en.md` 翻译并启用 |
 | 品牌标识 | 朱印「川」已替换 Starter 图标，header、侧栏与标签页统一 | 无需处理 |
+| 四预设视觉回归 | Paper 文章页已核对四宽 × 明暗；Slate/Ink/Terminal 在 1440 × 明暗抽查通过 | 按 #17 补齐四套 × 明暗 × 四宽截图 |
 | 标签词表 | 博客用 `Agent`、译文用 `AI Agent`，站上并存两个标签页 | 统一成一个词，或明确“原创 / 译文”分层规则 |
 
 ## 9. 关键文件索引

@@ -55,6 +55,14 @@ function Complete-Tests {
     exit 1
 }
 
+# 断言某条 CSS 规则（可同时存在多条同名规则）里出现预期值。
+function Test-CssRule {
+    param([string]$Css, [string]$Selector, [string]$Expected, [string]$Name)
+
+    $rules = [regex]::Matches($Css, [regex]::Escape($Selector) + '\{(?<body>[^}]*)\}')
+    $hit = @($rules | Where-Object { $_.Groups['body'].Value -match $Expected })
+    Test-Check ($hit.Count -gt 0) $Name @("$Selector 的任何一条规则都没命中 $Expected")
+}
 function Resolve-HugoBinary {
     param([string]$Explicit, [string]$RepoRoot)
 

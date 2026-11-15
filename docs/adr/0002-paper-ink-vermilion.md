@@ -10,6 +10,6 @@
 
 ## Consequences
 
-- 定制样式、文章头部 partial 和首页/索引 partial 需要在 OINK 升级时复查；四套预设 × 明暗两种模式都要做视觉回归。
+- 定制样式、文章头部 partial 和首页/索引 partial 需要在 OINK 升级时复查；四套预设 × 明暗两种模式都要做视觉回归。文章页头部顺序覆盖了 `layouts/blog/_td-content.html`（去掉 byline、把摘要提到日期之前），升级 OINK 时需与上游逐行对照。
 - 动效 JS 是渐进增强：脚本失败时内容完整可读，`prefers-reduced-motion` 下全部关闭；View Transitions 只在 Chromium 生效，其他浏览器直接跳转。
-- 不改文章正文与 front matter；只动 `data/`、`layouts/`、`assets/`、`static/` 和 `hugo.yaml`。
+- 不改文章正文与 front matter；改动只落在 `data/`、`layouts/`、`assets/`、`static/`、`hugo.yaml`，以及配套的 `docs/`、`GLOSSARY.md` 与 `tests/`。

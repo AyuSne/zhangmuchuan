@@ -1,0 +1,16 @@
+{{- /* 文章页的阅读进度与回到顶部，以及 1000px 以下抽屉的隔离修正（issue #13）。
+       两段脚本都失败时页面内容完整可读；进度条与回到顶部保持不可见。 */ -}}
+{{- if and .IsPage (eq .Type "blog") -}}
+<div class="td-read-progress" data-td-read-progress aria-hidden="true" hidden>
+  <span class="td-read-progress__fill" data-td-read-progress-fill></span>
+</div>
+<button type="button" class="td-back-top" data-td-back-top aria-label="回到顶部" title="回到顶部">
+  <i class="td-shell-icon td-shell-icon--arrow-up fa-solid fa-arrow-up" aria-hidden="true"></i>
+</button>
+{{- $js := resources.Get "js/article.js" | minify | fingerprint -}}
+<script src="{{ $js.RelPermalink }}" defer{{ with $js.Data.Integrity }} integrity="{{ . }}" crossorigin="anonymous"{{ end }}></script>
+{{- end -}}
+{{- if partial "shell/chrome-enabled.html" . -}}
+{{- $drawer := resources.Get "js/shell-drawer.js" | minify | fingerprint -}}
+<script src="{{ $drawer.RelPermalink }}" defer{{ with $drawer.Data.Integrity }} integrity="{{ . }}" crossorigin="anonymous"{{ end }}></script>
+{{- end -}}
