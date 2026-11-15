@@ -1,0 +1,11 @@
+{{- /* 首页分区标题头：序号 + 标题 + 右侧「全部 …」。01/02/03 共用，避免三处各写一遍。 */ -}}
+{{- $data := .data -}}
+<header class="td-home-section__head" data-td-reveal>
+  {{- with $data.index }}
+  <p class="td-home-section__index" aria-hidden="true">{{ . }}</p>
+  {{- end }}
+  <h2 class="td-home-section__title"{{ with $data.heading_id }} id="{{ . }}"{{ end }}>{{ $data.title }}</h2>
+  {{- with $data.more_label }}
+  <a class="td-home-section__more" href="{{ $data.more_url | relURL }}">{{ . }}<span class="td-home-arrow" aria-hidden="true">→</span></a>
+  {{- end }}
+</header>

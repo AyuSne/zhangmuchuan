@@ -1,0 +1,16 @@
+{{- /* 首页结尾：一行安静的订阅与联系入口。RSS 走站点的 RSS 输出，GitHub 用配置里的仓库。 */ -}}
+{{- $data := .data -}}
+<section class="td-home-cta" aria-labelledby="td-home-cta-title">
+  <div class="td-site-container td-home-cta__inner">
+    {{- with $data.title }}
+    <p class="td-home-cta__title" id="td-home-cta-title">{{ . }}</p>
+    {{- end }}
+    <nav class="td-home-cta__links" aria-label="订阅与联系">
+      <a class="td-home-cta__link" href="{{ "index.xml" | relURL }}">RSS<span class="td-home-arrow" aria-hidden="true">→</span></a>
+      {{- with site.Params.github_repo }}
+      <a class="td-home-cta__link" href="{{ . }}">GitHub<span class="td-home-arrow" aria-hidden="true">→</span></a>
+      {{- end }}
+      <a class="td-home-cta__link" href="{{ "about/" | relURL }}">关于我<span class="td-home-arrow" aria-hidden="true">→</span></a>
+    </nav>
+  </div>
+</section>

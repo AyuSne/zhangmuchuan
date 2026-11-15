@@ -24,6 +24,7 @@
 | 2026-11-12 | 补 Skills 第五篇任务切片插图与“实现交付”篇，更新智能体记忆专题 |
 | 2026-11-13 | 首页增加翻译栏目入口，更新 Skills 系列与 Agent 记忆文章 |
 | 2026-11-13 | OINK 升级到 v1.5.1（构建基线 Hugo 0.169.0 不变）；隔离构建核对：107 页、产物文件集合与 1.4.0 一致，差异仅无障碍文案、归档分页语义、404 外壳与 RSS 日期 |
+| 2026-11-15 | 品牌换成朱印「川」，新增品牌回归测试；交付「纸 · 墨 · 朱」token 层与 Paper 首页（hero → 01 最近写作 → 02 系列 → 03 译文 → CTA），新增首页回归测试 |
 
 ## 3. 技术选型
 
@@ -56,15 +57,17 @@
 │   │   └── <slug>/index.md       # 译文，正文开头注明原作者与原文链接
 │   └── about.md                  # 关于页外壳（layout: landing）
 ├── data/
-│   ├── home/zh.yaml              # 首页内容：hero、最新文章、入口卡片
+│   ├── home/zh.yaml              # 首页内容：hero、01 最近写作、02 系列、03 译文、CTA
 │   └── landing/about/zh.yaml     # 关于页正文
-├── layouts/partials/custom/
-│   └── latest-posts.html         # 首页“最新文章”区块（合并 blog 与 translations 排序）
+├── layouts/partials/custom/home/   # 首页各分区（hero、01 最近写作、02 系列、03 译文、CTA）
+├── assets/scss/_styles_project.scss # 「纸 · 墨 · 朱」token 层与首页版式
 ├── .github/workflows/
 │   └── github-pages.yaml         # 构建并发布到 Pages
 ├── static/brand/seal.svg          # 朱印品牌标识母版（header、侧栏都用它）
 ├── static/favicon.svg            # 浏览器标签图标，同一枚朱印的副本
 ├── tests/brand-seal.ps1          # 朱印品牌回归测试（出包后校验品牌位与标签图标）
+├── tests/home-paper.ps1         # 首页版式与降级回归测试
+├── tests/lib/harness.ps1        # 两个测试共用的构建与断言工具
 ├── .agents/skills/               # 技能仓库内副本（27 个，版本锁在 skills-lock.json）
 ├── docs/
 │   ├── adr/0001-…md              # 架构决策记录
@@ -104,8 +107,8 @@ git push origin main
 
 ## 6. 内容现状
 
-- **首页**：hero 自我介绍 + 最新文章（blog 与 translations 合并按日期倒序取 3 篇）+ 三个入口卡片（博客、翻译、关于）。
-- **博客**：19 篇长文，全部是 page bundle，插图 66 张。
+- **首页**：hero（三动作 + 朱印 + 竖排短句 + 统计 + 最近更新）→ 01 最近写作（一主四辅）→ 02 系列 → 03 最近译文 → CTA；数据都在 `data/home/zh.yaml`，分区模板在 `layouts/partials/custom/home/`。
+- **博客**：20 篇长文，全部是 page bundle，插图 66 张。
 - **翻译**：8 篇译文，复用博客模板，正文开头注明原作者与原文链接（多数另附原文发表时间）；其中 3 篇与站内原创长文构成“原创分析 + 同文译文”的配对。
 - **关于**：landing 布局，文案在 `data/landing/about/zh.yaml`。
 - **系列**：两个，都在文章页显示系列导航。
@@ -118,8 +121,8 @@ git push origin main
 
 ## 7. 质量检查
 
-- 本地生产构建：**107 页，0 个路径警告**，仅有 OINK 上游的 LibSass 弃用警告（已接受，见 `AGENTS.md`）。
-- 线上：首页 HTTP 200，内容与仓库一致；最新文章、入口卡片、翻译栏目均正常。
+- 本地生产构建：**109 页，0 个路径警告**，仅有 OINK 上游的 LibSass 弃用警告（已接受，见 `AGENTS.md`）。
+- 线上：首页 HTTP 200，内容与仓库一致；hero、最近写作、系列、最近译文与 CTA 均正常。
 - CI：最近 5 次运行全部 `success`，耗时 41–54 秒。
 - 仓库单一 `main` 分支，与 `origin/main` 同步推进；提交前确认工作区没有遗留改动。
 - 建站期 `/code-review` 修掉的三个硬问题（Hugo 基线三处不一致、术语冲突、README 关于页路径错误）已闭环；Hugo 默认 `categories` 已关闭，只用 `tags` 与 `series`。

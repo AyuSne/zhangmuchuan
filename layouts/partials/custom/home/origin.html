@@ -1,0 +1,14 @@
+{{- /* 从译文正文开头的出处行读出原作者与原文日期。
+       译文正文不改，出处仍写在正文第一段的引用行里；读不到就返回空串，由调用方兜底。 */ -}}
+{{- $head := delimit (first 6 (split .RawContent "\n")) "\n" -}}
+{{- $author := "" -}}
+{{- with (findRE `原作者[:：]\s*([^；;\n]+)` $head 1) -}}
+  {{- $author = replaceRE `^.*?原作者[:：]\s*` "" (index . 0) -}}
+  {{- $author = strings.TrimSpace $author -}}
+{{- end -}}
+{{- $date := "" -}}
+{{- with (findRE `原文发表[:：]\s*(\d{4}-\d{2}-\d{2})` $head 1) -}}
+  {{- $date = replaceRE `^.*?原文发表[:：]\s*` "" (index . 0) -}}
+  {{- $date = strings.TrimSpace $date -}}
+{{- end -}}
+{{- return (dict "author" $author "date" $date) -}}

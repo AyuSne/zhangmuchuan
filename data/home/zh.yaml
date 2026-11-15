@@ -1,40 +1,57 @@
 sections:
-  - hero
-  - type: latest
-    partial: custom/latest-posts.html
-    data:
-      eyebrow: 最近
-      title: 最新文章
-      desc: 最近发布的三篇，更多内容见博客与翻译栏目。
-      limit: 3
-  - cards
+  - type: hero
+    partial: custom/home/hero.html
+  - type: recent
+    partial: custom/home/recent-writing.html
+  - type: series
+    partial: custom/home/series.html
+  - type: translations
+    partial: custom/home/translations.html
+  - type: cta
+    partial: custom/home/cta.html
 
 hero:
-  align: center
   eyebrow: 张暮川
   title_lines:
-    - words: [{ text: 写点技术， }]
-    - words: [{ text: 也写点思考。 }]
+    - 写点技术，
+    - 也写点思考。
   lead: 一个记录技术、思考与写作的个人博客。
   actions:
-    - { label: 读博客, url: blog/, icon: fa-solid fa-pen-nib, style: primary }
-    - { label: 读翻译, url: translations/, icon: fa-solid fa-language, style: ghost }
-    - { label: 关于我, url: about/, icon: fa-solid fa-circle-info, style: ghost }
+    - { label: 读博客, url: blog/, style: primary }
+    - { label: 读翻译, url: translations/, style: ghost }
+    - { label: RSS 订阅, url: index.xml, style: ghost }
+  vertical: 纸短情长，字里行间。
+  latin: Paper · Ink · Vermilion
+  stats:
+    - { key: posts, label: 篇文章 }
+    - { key: translations, label: 篇译文 }
+    - { key: series, label: 个系列 }
 
-cards:
-  eyebrow: 从这里开始
-  title: 三个入口
-  columns: 3
+recent:
+  index: "01"
+  title: 最近写作
+  heading_id: td-home-recent-title
+  more_label: 全部文章
+  more_url: blog/
+
+series:
+  index: "02"
+  title: 系列
+  heading_id: td-home-series-title
+  more_label: 全部系列
+  more_url: series/
   items:
-    - title: 博客
-      desc: 技术长文与阶段性思考，按时间倒序。
-      icon: fa-solid fa-pen-nib
-      url: blog/
-    - title: 翻译
-      desc: 值得细读的文章中文译文。
-      icon: fa-solid fa-language
-      url: translations/
-    - title: 关于
-      desc: 我是谁，以及这个站为什么存在。
-      icon: fa-solid fa-circle-info
-      url: about/
+    - name: 智能体第一性原理
+      blurb: 从循环、控制到业务场景，逐层拆开智能体的工程约束。
+    - name: Matt Pocock Skills
+      blurb: 逐条拆解一套 Agent 技能库的设计取舍与使用边界。
+
+translations:
+  index: "03"
+  title: 最近译文
+  heading_id: td-home-translations-title
+  more_label: 全部译文
+  more_url: translations/
+
+cta:
+  title: 想继续读？订阅 RSS，或到 GitHub 看这个站是怎么搭的。

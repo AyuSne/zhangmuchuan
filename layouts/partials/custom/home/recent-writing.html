@@ -1,0 +1,41 @@
+{{- /* 01 最近写作：主推第一篇，下面四条行式列表。
+       行式列表不用卡片：日期 / 标题 / 阅读时长，行间细线。 */ -}}
+{{- $data := .data -}}
+{{- $posts := (where site.RegularPages "Section" "blog").ByDate.Reverse -}}
+{{- $featured := index $posts 0 -}}
+{{- $rest := first 4 (after 1 $posts) -}}
+
+<section class="td-home-section td-home-recent" aria-labelledby="td-home-recent-title">
+  <div class="td-site-container">
+    {{ partial "custom/home/section-head.html" (dict "data" $data) }}
+
+    <div class="td-home-recent__grid">
+      {{- with $featured }}
+      <article class="td-home-recent__featured" data-td-reveal>
+        <p class="td-home-recent__meta">
+          <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
+          <span aria-hidden="true">·</span>
+          <span>{{ .ReadingTime }} 分钟</span>
+        </p>
+        <h3 class="td-home-recent__featured-title"><a class="td-home-recent__featured-link" href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+        <p class="td-home-recent__summary">{{ .Description }}</p>
+        <a class="td-home-recent__read" href="{{ .RelPermalink }}">阅读全文<span class="td-home-arrow" aria-hidden="true">→</span></a>
+      </article>
+      {{- end }}
+
+      {{- with $rest }}
+      <ol class="td-home-recent__list">
+        {{- range $index, $post := . }}
+        <li class="td-home-recent__item" data-td-reveal style="--td-stagger: {{ $index }}">
+          <a class="td-home-recent__item-link" href="{{ $post.RelPermalink }}">
+            <time class="td-home-recent__item-date" datetime="{{ $post.Date.Format "2006-01-02" }}">{{ $post.Date.Format "2006-01-02" }}</time>
+            <span class="td-home-recent__item-title">{{ $post.Title }}</span>
+            <span class="td-home-recent__item-time">{{ $post.ReadingTime }} 分钟</span>
+          </a>
+        </li>
+        {{- end }}
+      </ol>
+      {{- end }}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,28 @@
+{{- /* 03 最近译文：三行，标题 + 原作者 / 日期。日期是译文发布日，
+       原文发表日放在 title 属性里，避免和译文日期混为一谈。 */ -}}
+{{- $data := .data -}}
+{{- $translations := (where site.RegularPages "Section" "translations").ByDate.Reverse -}}
+{{- $rows := first 3 $translations -}}
+
+<section class="td-home-section td-home-translations" aria-labelledby="td-home-translations-title">
+  <div class="td-site-container">
+    {{ partial "custom/home/section-head.html" (dict "data" $data) }}
+
+    <ol class="td-home-translations__list">
+      {{- range $index, $post := $rows }}
+      {{- $origin := partial "custom/home/origin.html" $post }}
+      <li class="td-home-translations__row" data-td-reveal style="--td-stagger: {{ $index }}">
+        <a class="td-home-translations__link" href="{{ $post.RelPermalink }}">
+          <span class="td-home-translations__title">{{ $post.Title }}</span>
+          <span class="td-home-translations__meta">
+            <span class="td-home-translations__by">{{ with $origin.author }}{{ . }}{{ else }}译文{{ end }}</span>
+            <span class="td-home-translations__sep" aria-hidden="true">·</span>
+            <time class="td-home-translations__date" datetime="{{ $post.Date.Format "2006-01-02" }}"
+              {{- with $origin.date }} title="原文发表 {{ . }}"{{ end }}>{{ $post.Date.Format "2006-01-02" }}</time>
+          </span>
+        </a>
+      </li>
+      {{- end }}
+    </ol>
+  </div>
+</section>

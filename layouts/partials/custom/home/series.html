@@ -1,0 +1,40 @@
+{{- /* 02 系列：按 data 里的顺序与说明渲染；篇数与年份从 taxonomy 现算。 */ -}}
+{{- $data := .data -}}
+{{- $terms := site.Taxonomies.series -}}
+
+<section class="td-home-section td-home-series" aria-labelledby="td-home-series-title">
+  <div class="td-site-container">
+    {{ partial "custom/home/section-head.html" (dict "data" $data) }}
+
+    <div class="td-home-series__grid">
+      {{- range $index, $item := $data.items }}
+        {{- $weighted := index $terms $item.name -}}
+        {{- if not $weighted }}
+          {{- range $key, $value := $terms }}
+            {{- if and (not $weighted) $value.Page (eq $value.Page.Title $item.name) }}{{ $weighted = $value }}{{ end }}
+          {{- end }}
+        {{- end }}
+        {{- with $weighted }}
+          {{- $termPage := .Page -}}
+          {{- $years := slice }}
+          {{- range . }}{{ $years = $years | append (.Date.Format "2006") }}{{ end }}
+          {{- $years = $years | sort | uniq -}}
+          {{- $yearText := delimit $years "–" }}
+          {{- with $termPage }}
+      <a class="td-home-series__card" href="{{ .RelPermalink }}" data-td-reveal style="--td-stagger: {{ $index }}">
+        <p class="td-home-series__meta">
+          <span class="td-home-series__count">{{ len $weighted }} 篇</span>
+          <span class="td-home-series__year">{{ $yearText }}</span>
+        </p>
+        <h3 class="td-home-series__name">{{ $item.name }}</h3>
+        {{- with $item.blurb }}
+        <p class="td-home-series__blurb">{{ . }}</p>
+        {{- end }}
+        <span class="td-home-series__enter">进入系列<span class="td-home-arrow" aria-hidden="true">→</span></span>
+      </a>
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    </div>
+  </div>
+</section>

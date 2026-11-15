@@ -1,0 +1,70 @@
+{{- /* 首页 hero：左侧文案与统计，右侧朱印与竖排短句。
+       统计数字由内容计算，接入 OINK 的 data-td-count 运行时做一次滚动。 */ -}}
+{{- $data := .data -}}
+{{- $counts := dict
+  "posts" (len (where site.RegularPages "Section" "blog"))
+  "translations" (len (where site.RegularPages "Section" "translations"))
+  "series" (len site.Taxonomies.series)
+-}}
+{{- $latest := index ((where site.RegularPages "Section" "blog").ByDate.Reverse) 0 -}}
+{{- $seal := "brand/seal.svg" | relURL -}}
+{{- $lineCount := len ($data.title_lines | default (slice)) -}}
+
+<section class="td-home-hero" aria-labelledby="td-home-hero-title">
+  <div class="td-site-container td-home-hero__inner">
+    <div class="td-home-hero__copy">
+      {{- with $data.eyebrow }}
+      <p class="td-home-hero__eyebrow"><span class="td-home-hero__eyebrow-mark" aria-hidden="true"></span>{{ . }}</p>
+      {{- end }}
+
+      <h1 class="td-home-hero__title" id="td-home-hero-title">
+        {{- range $index, $line := $data.title_lines }}
+        <span class="td-home-hero__line" style="--td-line-index: {{ $index }}"><span class="td-home-hero__line-text">{{ $line }}</span></span>
+        {{- end }}
+      </h1>
+
+      {{- with $data.lead }}
+      <p class="td-home-hero__lead" style="--td-rise-index: {{ $lineCount }}">{{ . }}</p>
+      {{- end }}
+
+      {{- with $data.actions }}
+      <p class="td-home-hero__actions" style="--td-rise-index: {{ add $lineCount 1 }}">
+        {{- range . }}
+        <a class="td-home-hero__action td-home-hero__action--{{ .style | default "ghost" }}" href="{{ .url | relURL }}">{{ .label }}</a>
+        {{- end }}
+      </p>
+      {{- end }}
+
+      {{- with $data.stats }}
+      <ul class="td-home-hero__stats" style="--td-rise-index: {{ add $lineCount 2 }}">
+        {{- range . }}
+        {{- $value := index $counts .key | default 0 }}
+        <li class="td-home-hero__stat">
+          <span class="td-home-hero__stat-value" data-td-count="{{ $value }}" data-td-count-duration="900">{{ $value }}</span>
+          <span class="td-home-hero__stat-label">{{ .label }}</span>
+        </li>
+        {{- end }}
+      </ul>
+      {{- end }}
+
+      {{- with $latest }}
+      <p class="td-home-hero__updated">
+        <span class="td-home-hero__updated-label">最近更新</span>
+        <a class="td-home-hero__updated-link" href="{{ .RelPermalink }}"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time></a>
+      </p>
+      {{- end }}
+    </div>
+
+    <aside class="td-home-hero__mark">
+      <div class="td-home-hero__stamp">
+        <img class="td-home-hero__seal" src="{{ $seal }}" alt="" width="96" height="96">
+        {{- with $data.latin }}
+        <p class="td-home-hero__latin">{{ . }}</p>
+        {{- end }}
+      </div>
+      {{- with $data.vertical }}
+      <p class="td-home-hero__vertical">{{ . }}</p>
+      {{- end }}
+    </aside>
+  </div>
+</section>

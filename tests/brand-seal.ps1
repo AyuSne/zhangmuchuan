@@ -22,9 +22,7 @@
     这是主题的窄屏约定，不是本脚本能判定的内容。
 
 .NOTES
-    运行（PowerShell 5.1 默认 Restricted，需要放行脚本）：
-        powershell -NoProfile -ExecutionPolicy Bypass -File tests\brand-seal.ps1
-    产物目录 .tools/test-public 在 .gitignore 覆盖范围内，不会进版本库。
+    运行：powershell -NoProfile -ExecutionPolicy Bypass -File tests\brand-seal.ps1
 #>
 
 [CmdletBinding()]
@@ -39,211 +37,40 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "lib/harness.ps1")
+
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $OutDir = Join-Path $RepoRoot $Destination
 $SealPath = Join-Path $RepoRoot "static/brand/seal.svg"
 $BrandText = "张暮川"
 $StarterBlue = "245f94"
 
-# 唯一允许的构建警告：上游 LibSass 弃用提示，逐字匹配，别放行别的含 libsass 的警告。
-$AcceptedWarning = '^WARN\s+deprecated: css\.Sass: libsass was deprecated in Hugo v0\.153\.0'
-
-$script:Passed = 0
-$script:Failures = [System.Collections.Generic.List[string]]::new()
-
-function Test-Check {
-    param([bool]$Condition, [string]$Name, [string[]]$Detail = @())
-
-    if ($Condition) {
-        $script:Passed++
-        Write-Host "  ok   $Name"
-        return
-    }
-    $script:Failures.Add($Name)
-    Write-Host "  FAIL $Name" -ForegroundColor Red
-    foreach ($line in ($Detail | Select-Object -First 6)) {
-        Write-Host "       $line" -ForegroundColor DarkGray
-    }
-    if ($Detail.Count -gt 6) {
-        Write-Host "       ……还有 $($Detail.Count - 6) 条" -ForegroundColor DarkGray
-    }
-}
-
-function Resolve-Hugo {
-    param([string]$Explicit)
-
-    if ($Explicit) {
-        if (-not (Test-Path -LiteralPath $Explicit)) { throw "找不到指定的 hugo：$Explicit" }
-        return (Resolve-Path -LiteralPath $Explicit).Path
-    }
-    $cmd = Get-Command hugo -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
-    foreach ($candidate in @(".tools/hugo/hugo.exe", ".tools/hugo/hugo")) {
-        $probe = Join-Path $RepoRoot $candidate
-        if (Test-Path -LiteralPath $probe) { return $probe }
-    }
-    throw "找不到 hugo。把 Hugo Extended 放进 PATH，或用 -HugoBinary 指定。"
-}
-
-function Get-Attrs {
-    param([string]$Tag)
-
-    $attrs = @{}
-    $pattern = '([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*(?:"([^"]*)"|''([^'']*)''|([^\s>"'']+))'
-    foreach ($m in [regex]::Matches($Tag, $pattern)) {
-        $value = if ($m.Groups[2].Success) { $m.Groups[2].Value }
-                 elseif ($m.Groups[3].Success) { $m.Groups[3].Value }
-                 else { $m.Groups[4].Value }
-        $attrs[$m.Groups[1].Value.ToLowerInvariant()] = $value
-    }
-    return $attrs
-}
-
-# 找到第一个 class 含 $Class 的元素（不受属性顺序、引号形式影响）。
-function Get-ClassElement {
-    param([string]$Html, [string]$Class, [int]$From = 0, [int]$To = -1)
-
-    $length = if ($To -ge 0) { $To - $From } else { $Html.Length - $From }
-    if ($length -le 0) { return $null }
-    $region = $Html.Substring($From, $length)
-    $pattern = '<(?<name>[A-Za-z][A-Za-z0-9]*)\b(?<attrs>[^>]*)>'
-    foreach ($m in [regex]::Matches($region, $pattern)) {
-        $attrs = Get-Attrs $m.Groups['attrs'].Value
-        if (-not $attrs.ContainsKey("class")) { continue }
-        if (($attrs["class"] -split '\s+' | Where-Object { $_ }) -contains $Class) {
-            return @{
-                Name  = $m.Groups['name'].Value.ToLowerInvariant()
-                Tag   = $m.Value
-                Start = $From + $m.Index
-                End   = $From + $m.Index + $m.Length
-                Attrs = $attrs
-            }
-        }
-    }
-    return $null
-}
-
-# 取元素开标签之后到对应闭标签之间的文字。
-function Get-InnerText {
-    param([string]$Html, $Element)
-
-    if (-not $Element) { return "" }
-    $close = "</$($Element.Name)>"
-    $end = $Html.IndexOf($close, $Element.End, [System.StringComparison]::OrdinalIgnoreCase)
-    if ($end -lt 0) { return "" }
-    $raw = $Html.Substring($Element.End, $end - $Element.End)
-    return ($raw -replace '<[^>]*>', '').Trim()
-}
-
-# 把站内链接解析成产物里的文件；文件名在产物内必须唯一，否则视为无法判定。
-function Resolve-OutputFile {
-    param([string]$Href)
-
-    if (-not $Href) { return $null }
-    $path = ($Href -replace '^[A-Za-z][A-Za-z0-9+.-]*://[^/]+', '').Split('?')[0].Split('#')[0]
-    $leaf = ($path -split '/')[-1]
-    if (-not $leaf) { return $null }
-    $hits = @(Get-ChildItem -LiteralPath $OutDir -Recurse -File -Filter $leaf -ErrorAction SilentlyContinue)
-    if ($hits.Count -ne 1) { return $null }
-    return $hits[0].FullName
-}
-
 # 判断一个站内图片地址是不是朱印母版：通过返回空串，否则返回原因。
 function Test-SealRef {
     param([string]$Href)
 
     if (-not $Href) { return "没有图片地址" }
-    $file = Resolve-OutputFile $Href
+    $file = Resolve-OutputFile -Href $Href -Root $OutDir
     if (-not $file) { return "文件找不到（$Href）" }
     # 母版本身缺失时有单独的断言，这里不重复报同一件事。
-    if ($script:SealHash -and (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $script:SealHash) {
+    if ($script:SealHash -and (Get-Sha256 $file) -ne $script:SealHash) {
         return "不是朱印（$Href）"
     }
     return ""
 }
 
-function ConvertTo-HexColor {
-    param([string]$Value)
-
-    $m = [regex]::Match($Value, '^#(?<hex>[0-9A-Fa-f]{6})$')
-    if (-not $m.Success) { return $null }
-    $hex = $m.Groups['hex'].Value
-    return @(
-        [Convert]::ToInt32($hex.Substring(0, 2), 16),
-        [Convert]::ToInt32($hex.Substring(2, 2), 16),
-        [Convert]::ToInt32($hex.Substring(4, 2), 16)
-    )
-}
-
-function Get-RelativeLuminance {
-    param([int[]]$Rgb)
-
-    $channel = {
-        param([int]$v)
-        $s = $v / 255.0
-        if ($s -le 0.04045) { return $s / 12.92 }
-        return [Math]::Pow(($s + 0.055) / 1.055, 2.4)
-    }
-    $r = & $channel $Rgb[0]
-    $g = & $channel $Rgb[1]
-    $b = & $channel $Rgb[2]
-    return 0.2126 * $r + 0.7152 * $g + 0.0722 * $b
-}
-
-function Get-ContrastRatio {
-    param([int[]]$Foreground, [int[]]$Background)
-
-    $a = Get-RelativeLuminance $Foreground
-    $b = Get-RelativeLuminance $Background
-    $hi = [Math]::Max($a, $b)
-    $lo = [Math]::Min($a, $b)
-    return [Math]::Round(($hi + 0.05) / ($lo + 0.05), 2)
-}
-
 # ---------------------------------------------------------------- 构建
 
-$hugo = Resolve-Hugo -Explicit $HugoBinary
-$env:GOWORK = "off"
-$env:HUGO_MODULE_WORKSPACE = "off"
-$goBin = Join-Path $RepoRoot ".tools/go/bin"
-if (Test-Path -LiteralPath $goBin) { $env:PATH = "$goBin;$env:PATH" }
+$build = Invoke-SiteBuild -RepoRoot $RepoRoot -HugoBinary $HugoBinary -Destination $Destination
 
-Write-Host "构建：$(Split-Path -Leaf $hugo) --destination $Destination --minify --environment production"
-$buildExit = 0
-$buildLog = @()
-Push-Location $RepoRoot
-$previousEap = $ErrorActionPreference
-try {
-    # 与 README / CI 同一条生产构建命令，测试产物就是读者拿到的产物。
-    $buildArgs = @(
-        "--destination", $Destination
-        "--cleanDestinationDir", "--gc", "--minify"
-        "--environment", "production"
-        "--printPathWarnings"
-    )
-    # hugo 把警告写到 stderr；5.1 会把它变成错误记录，这里只要文本，不要中断。
-    $ErrorActionPreference = "Continue"
-    $buildLog = @(& $hugo @buildArgs 2>&1 | ForEach-Object { "$_" })
-    $buildExit = $LASTEXITCODE
-}
-finally {
-    $ErrorActionPreference = $previousEap
-    Pop-Location
-}
-$buildLog | ForEach-Object { Write-Host $_ }
+Write-Section "构建与接线"
 
-Write-Host ""
-Write-Host "构建与接线"
-
-Test-Check ($buildExit -eq 0) "生产构建通过" @("hugo 退出码 $buildExit")
-
-$warnings = @($buildLog | Where-Object { $_ -match '^\s*(WARN|ERROR)\b' })
-$unexpected = @($warnings | Where-Object { $_ -notmatch $AcceptedWarning })
-Test-Check ($unexpected.Count -eq 0) "没有新增构建警告" $unexpected
+Test-Check ($build.Exit -eq 0) "生产构建通过" @("hugo 退出码 $($build.Exit)")
+Test-Check ($build.Unexpected.Count -eq 0) "没有新增构建警告" $build.Unexpected
 
 $ok = Test-Path -LiteralPath $SealPath
 Test-Check $ok "朱印母版存在：static/brand/seal.svg" @("缺少 $SealPath")
-$script:SealHash = if ($ok) { (Get-FileHash -LiteralPath $SealPath -Algorithm SHA256).Hash } else { "" }
+$script:SealHash = if ($ok) { Get-Sha256 $SealPath } else { "" }
 
 # ---------------------------------------------------------------- 页面
 
@@ -373,8 +200,7 @@ Test-Check ($faviconHrefs.Count -le 1) "全站标签图标用同一个地址" @(
 
 # ---------------------------------------------------------------- 素材
 
-Write-Host ""
-Write-Host "品牌素材"
+Write-Section "品牌素材"
 
 $starterHits = @()
 if (Test-Path -LiteralPath $OutDir) {
@@ -421,13 +247,4 @@ if ($script:SealHash) {
     }
 }
 
-# ---------------------------------------------------------------- 结果
-
-Write-Host ""
-if ($script:Failures.Count -eq 0) {
-    Write-Host "PASS  $($script:Passed) 项检查全部通过" -ForegroundColor Green
-    exit 0
-}
-Write-Host "FAIL  $($script:Failures.Count) 项失败，$($script:Passed) 项通过" -ForegroundColor Red
-foreach ($name in $script:Failures) { Write-Host "  - $name" -ForegroundColor Red }
-exit 1
+Complete-Tests

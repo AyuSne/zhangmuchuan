@@ -52,7 +52,7 @@ tags: [标签]
 
 正文用 Markdown。站点结构：
 
-- 首页：`data/home/zh.yaml`（含 hero、最新文章、入口卡片）
+- 首页：`data/home/zh.yaml` + `layouts/partials/custom/home/`（hero → 01 最近写作 → 02 系列 → 03 译文 → CTA）
 - 博客：`content/blog/<slug>/index.md`
 - 翻译：`content/translations/<slug>/index.md`（收录中文译文，注明原作者与原文；流程见使用手册第 3.5 节）
 - 关于：`content/about.md`（页面外壳，`layout: landing`）+ `data/landing/about/zh.yaml`（正文）

@@ -147,7 +147,7 @@ tags: [AI]
 译文正文……
 ```
 
-原文有可用的公开图片链接时，优先直接引用并保留图片说明；需要本地图片时，将图片放在对应文章目录并使用相对路径。新译文会自动出现在翻译栏目，也会参与首页最新文章排序。
+原文有可用的公开图片链接时，优先直接引用并保留图片说明；需要本地图片时，将图片放在对应文章目录并使用相对路径。新译文会自动出现在翻译栏目，也会进入首页的「03 最近译文」。
 
 ### 3.6 草稿
 
@@ -187,7 +187,7 @@ git push
 
 1. 打开 <https://github.com/AyuSne/zhangmuchuan/actions> 看构建，通常 30–60 秒。
 2. 构建成功后访问 <https://ayusne.github.io/zhangmuchuan/blog/my-first-post/>。
-3. 首页“最新文章”和 `/blog/` 列表会自动更新。
+3. 首页的「01 最近写作」和 `/blog/` 列表会自动更新。
 
 > 如果 `git push` 要求登录，先跑 `gh auth status` 确认已登录；没登录就 `gh auth login`。
 
@@ -215,7 +215,7 @@ git push
 |---|---|
 | 站点标题 | `hugo.yaml` 的 `title:` |
 | 站点描述 | `hugo.yaml` → `languages.zh.params.description` |
-| 首页文案 | `data/home/zh.yaml`（hero、最新文章、入口卡片） |
+| 首页文案 | `data/home/zh.yaml`（hero、01 最近写作、02 系列、03 译文、CTA） |
 | 关于页 | `data/landing/about/zh.yaml`（hero + markdown.body） |
 | 导航菜单 | `content/blog/_index.md` 和 `content/about.md` 的 `menus.main`（`weight` 越小越靠前） |
 | 视觉风格 | `hugo.yaml` → `params.ui.preset`：`paper` / `slate` / `ink` / `terminal` |
