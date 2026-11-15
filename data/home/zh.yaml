@@ -45,6 +45,10 @@ series:
       blurb: 从循环、控制到业务场景，逐层拆开智能体的工程约束。
     - name: Matt Pocock Skills
       blurb: 逐条拆解一套 Agent 技能库的设计取舍与使用边界。
+    - name: Agent 工程第一性原理
+      blurb: 从指挥官意图到企业遗留库，用四个基本事实推导智能体工程的边界与底座。
+    - name: 垂直 Agent 实践
+      blurb: Anthropic 与一线团队在医疗、法律、销售、安全等垂类场景的真实落地复盘。
 
 translations:
   index: "03"
