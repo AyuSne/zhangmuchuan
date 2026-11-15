@@ -29,6 +29,14 @@ hugo --cleanDestinationDir --gc --minify --environment production --printPathWar
 
 构建产物在 `public/`，已被 `.gitignore` 忽略，不要提交。
 
+品牌回归测试会按与 CI 相同的命令出一次生产构建，再检查 header、侧栏与浏览器标签图标都是同一枚朱印（品牌标识的母版与约定见 `hugo.yaml` 的 `params.logo` 注释）：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\brand-seal.ps1
+```
+
+窄屏沿用 OINK 的既有约定：宽度 <992px 时 header 只留朱印，≥768px 的有侧栏页面由侧栏显示朱印和站名，390 宽度下只剩朱印。这是主题行为，本次不改布局；渲染层的观感（不糊、不裁切、深色可辨认）是人工检查项。
+
 ## 写作
 
 新文章放在 `content/blog/<slug>/index.md`（一篇一个文件夹，图片放同目录）：

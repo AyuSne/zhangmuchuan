@@ -55,6 +55,10 @@ taxonomies:
 
 params:
   offline_search: true
+  # 品牌标识：朱印「川」。母版 static/brand/seal.svg，header 与侧栏品牌位都用它；
+  # 浏览器标签图标 static/favicon.svg 是同一枚朱印的副本，两者必须逐字节相同，
+  # tests/brand-seal.ps1 会校验这条约定。
+  logo: brand/seal.svg
   copyright:
     authors: 张暮川
     from_year: 2026

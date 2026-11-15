@@ -62,8 +62,9 @@
 │   └── latest-posts.html         # 首页“最新文章”区块（合并 blog 与 translations 排序）
 ├── .github/workflows/
 │   └── github-pages.yaml         # 构建并发布到 Pages
-├── static/favicon.svg            # 站点图标
-├── assets/icons/logo.svg         # 站点 logo
+├── static/brand/seal.svg          # 朱印品牌标识母版（header、侧栏都用它）
+├── static/favicon.svg            # 浏览器标签图标，同一枚朱印的副本
+├── tests/brand-seal.ps1          # 朱印品牌回归测试（出包后校验品牌位与标签图标）
 ├── .agents/skills/               # 技能仓库内副本（27 个，版本锁在 skills-lock.json）
 ├── docs/
 │   ├── adr/0001-…md              # 架构决策记录
@@ -78,7 +79,7 @@
 └── THIRD_PARTY.md                # 第三方组件与许可证
 ```
 
-`public/`、`resources/`、`.tools/`、`翻译/` 都不进 Git；仓库只跟踪 199 个源文件。
+`public/`、`resources/`、`.tools/`、`翻译/` 都不进 Git；仓库只跟踪源文件。
 
 ## 5. 部署链路
 
@@ -130,7 +131,7 @@ git push origin main
 | 自定义域名 | 未绑定；`zhangmuchuan.com` 查询时仍未注册 | 购买并按 `docs/GUIDE.md` 绑定 |
 | 评论 | 关闭 | 需要时按 GUIDE 开启 Giscus |
 | 英文 | 已声明、未启用 | 需要时添加 `.en.md` 翻译并启用 |
-| logo / favicon | OINK Starter 的中性图标 | 有自己的标识后替换 |
+| 品牌标识 | 朱印「川」已替换 Starter 图标，header、侧栏与标签页统一 | 无需处理 |
 | 标签词表 | 博客用 `Agent`、译文用 `AI Agent`，站上并存两个标签页 | 统一成一个词，或明确“原创 / 译文”分层规则 |
 
 ## 9. 关键文件索引
