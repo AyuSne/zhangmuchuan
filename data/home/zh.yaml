@@ -49,6 +49,8 @@ series:
       blurb: 从指挥官意图到企业遗留库，用四个基本事实推导智能体工程的边界与底座。
     - name: 垂直 Agent 实践
       blurb: Anthropic 与一线团队在医疗、法律、销售、安全等垂类场景的真实落地复盘。
+    - name: AI 产品经理
+      blurb: Reforge、Marty Cagan 与 Shubham Saboo 谈智能体时代产品经理的角色、技能与工作闭环。
 
 translations:
   index: "03"
