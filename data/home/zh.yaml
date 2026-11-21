@@ -51,6 +51,8 @@ series:
       blurb: Anthropic 与一线团队在医疗、法律、销售、安全等垂类场景的真实落地复盘。
     - name: AI 产品经理
       blurb: Reforge、Marty Cagan 与 Shubham Saboo 谈智能体时代产品经理的角色、技能与工作闭环。
+    - name: 从第一性原理看 Agent4Sci
+      blurb: 从信息获取成本与五条硬约束出发，推导科研智能体的架构、实验室 Harness 造法与长期竞争壁垒。
 
 translations:
   index: "03"
